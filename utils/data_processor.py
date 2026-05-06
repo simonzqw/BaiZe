@@ -183,6 +183,7 @@ class DataProcessor:
         print(f">>> no-cell-line mode: using obs['{context_col}'] as control-pool context, not as cell-line embedding.")
 
 
+
     def _prepare_drug_features(self):
         self.drug_embeddings = None
         if 'smiles' not in self.adata.obs:
@@ -483,6 +484,8 @@ class DataProcessor:
                 atac_feats,
                 control_id,
                 control_pool_coarse,
+                id_to_perturb=None,
+                parse_structured_perturbation=None,
                 control_pool_fine=None,
                 local_batch_ids=None,
                 rna_noise=0.0,
@@ -508,6 +511,8 @@ class DataProcessor:
                 self.doses = doses
                 self.atac_feats = atac_feats
                 self.control_id = control_id
+                self.id_to_perturb = id_to_perturb
+                self.parse_structured_perturbation = parse_structured_perturbation
                 self.control_pool_coarse = control_pool_coarse
                 self.control_pool_fine = control_pool_fine
                 self.local_batch_ids = local_batch_ids
