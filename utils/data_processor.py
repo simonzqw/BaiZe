@@ -319,7 +319,7 @@ class DataProcessor:
             background_key=self.background_key,
         )
 
-        print(">>> 正在计算细胞系基线表达谱...")
+        print(">>> 正在计算 control context 基线表达谱...")
         self.cell_line_baselines = {}
         cell_line_values = self.adata.obs[self.cell_line_col].values
         pert_values = self.adata.obs['perturbation'].values
