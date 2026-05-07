@@ -166,30 +166,20 @@ python visualize_diffusion.py \
 
 ---
 
-## 8. Cross-species（实验脚本）
+## 8. Cross-species perturbation prediction module
 
-`scripts/` 下提供：
-- `prepare_mouse_context.py`
-- `train_cross_species_ctx.py`
-- `cross_species_infer_ctx.py`
+This module is independent from the diffusion mainline.
 
-用于 mouse→human context 预处理、训练与推理实验。
+### 8.1 Legacy scripts
 
+- `scripts/prepare_mouse_context.py`
+- `scripts/train_cross_species_ctx.py`
+- `scripts/cross_species_infer_ctx.py`
 
-## 7. Cross-species perturbation prediction module
+### 8.2 Recommended v2 workflow
 
-This module is independent from the main scERso diffusion pipeline.
-The original perturbation workflow remains: train_diffusion.py / evaluate_diffusion.py / predict_diffusion.py.
-
-Recommended cross-species workflow:
-1) scripts/run_source_delta_baseline.py
-2) scripts/cross_species_build_pseudobulk.py
-3) scripts/cross_species_train_residual.py
-4) scripts/cross_species_infer_residual.py
-5) scripts/evaluate_cross_species_mouse.py and scripts/evaluate_cross_species_context_preds.py
-
-Current recommended method: source-delta baseline + pseudo-bulk residual correction + context-wise aggregation.
-
-
-## Cross-species module (independent)
-Use the dedicated scripts under `scripts/cross_species_*` and models under `models/cross_species_*` for source-delta + residual transfer workflows. The diffusion mainline remains unchanged.
+1. Diagnose data: `scripts/cross_species_diagnose_data.py`
+2. Build bootstrap pseudo-bulk: `scripts/cross_species_build_pseudobulk.py`
+3. Train residual model: `scripts/cross_species_train_residual.py`
+4. Run context-wise inference: `scripts/cross_species_infer_residual.py`
+5. Evaluate: `scripts/evaluate_cross_species_mouse.py`, `scripts/evaluate_cross_species_context_preds.py`

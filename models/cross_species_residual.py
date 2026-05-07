@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 
@@ -22,7 +24,6 @@ class CrossSpeciesResidualPredictor(nn.Module):
         super().__init__()
         self.use_atac = use_atac
         self.residual_scale = residual_scale
-        self.learn_perturb_alpha = learn_perturb_alpha
         self.alpha_min = alpha_min
         self.alpha_max = alpha_max
 
@@ -50,7 +51,10 @@ class CrossSpeciesResidualPredictor(nn.Module):
         nn.init.zeros_(self.coeff_head.weight)
         nn.init.zeros_(self.coeff_head.bias)
         if self.alpha_emb is not None:
-            nn.init.constant_(self.alpha_emb.weight, alpha_init)
+            ratio = (alpha_init - alpha_min) / (alpha_max - alpha_min)
+            ratio = min(max(ratio, 1e-4), 1.0 - 1e-4)
+            raw_init = math.log(ratio / (1.0 - ratio))
+            nn.init.constant_(self.alpha_emb.weight, raw_init)
 
     @staticmethod
     def _encoder(in_dim: int, hidden_dim: int, out_dim: int, dropout: float) -> nn.Module:
@@ -73,14 +77,13 @@ class CrossSpeciesResidualPredictor(nn.Module):
         zc = self.control_encoder(control)
         zs = self.source_delta_encoder(source_delta)
         zp = self.perturb_emb(perturb_id)
-
         parts = [zc, zs, zp]
         if self.use_atac:
             if atac_feat is None:
                 raise ValueError("atac_feat is required when use_atac=True")
             parts.append(self.atac_encoder(atac_feat))
-
         h = self.fusion(torch.cat(parts, dim=-1))
+
         low_rank = self.coeff_head(h) @ self.gene_basis
         gate = self.gate_head(h)
         alpha = self._alpha(perturb_id)
@@ -90,12 +93,4 @@ class CrossSpeciesResidualPredictor(nn.Module):
         correction = alpha * gate * (self.residual_scale * low_rank)
         pred_delta = source_delta + correction
         pred = control + pred_delta
-
-        return {
-            "pred": pred,
-            "pred_delta": pred_delta,
-            "source_delta": source_delta,
-            "correction": correction,
-            "alpha": alpha,
-            "gate": gate,
-        }
+        return {"pred": pred, "pred_delta": pred_delta, "source_delta": source_delta, "correction": correction, "alpha": alpha, "gate": gate}
