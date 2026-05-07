@@ -1,0 +1,4 @@
+import argparse, pandas as pd, scanpy as sc, numpy as np
+p=argparse.ArgumentParser(); p.add_argument('--human_h5ad',required=True); p.add_argument('--mouse_h5ad',required=True); p.add_argument('--shared_gene_order_tsv',required=True); p.add_argument('--out_h5ad',required=True); a=p.parse_args()
+h=sc.read_h5ad(a.human_h5ad); m=sc.read_h5ad(a.mouse_h5ad); s=pd.read_csv(a.shared_gene_order_tsv,sep='\t')
+hg=s['human_gene_symbol'].astype(str).tolist(); mg=s['mouse_gene_symbol'].astype(str).tolist(); hi=[h.var_names.get_loc(g) for g in hg if g in h.var_names]; mi=[m.var_names.get_loc(g) for g in mg if g in m.var_names]; n=min(len(hi),len(mi)); h2=h[:,hi[:n]].copy(); m2=m[:,mi[:n]].copy(); h2.var_names=hg[:n]; m2.var_names=hg[:n]; h2.obs['species']='human'; m2.obs['species']='mouse'; h2.obs['split']='train'; m2.obs['split']='test'; sc.concat([h2,m2],join='inner').write_h5ad(a.out_h5ad)
