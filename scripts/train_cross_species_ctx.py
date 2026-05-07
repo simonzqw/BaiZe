@@ -16,7 +16,7 @@ def parse_args():
     p.add_argument("--data_path", type=str, required=True)
     p.add_argument("--save_dir", type=str, required=True)
     p.add_argument("--pretrained_emb", type=str, default=None)
-    p.add_argument("--split_strategy", type=str, default="perturbation", choices=["random", "perturbation"])
+    p.add_argument("--split_strategy", type=str, default="custom", choices=["random", "perturbation", "custom"])
     p.add_argument("--split_col", type=str, default="split")
     p.add_argument("--perturb_parse_mode", type=str, default="raw", choices=["raw", "single_gene_suffix_clean", "double_gene_parse"])
     p.add_argument("--task_mode", type=str, default="single_gene", choices=["single_gene", "translation"])
@@ -90,7 +90,7 @@ def run_epoch(model, loader, optimizer, scaler, device, timestep_sampler, sample
             else:
                 t, weights = None, None
             with torch.amp.autocast("cuda", enabled=scaler.is_enabled()):
-                loss = model(
+                diff_loss, details = model(
                     rna_control=ctrl,
                     perturb=perturb,
                     target_rna=target,
@@ -105,7 +105,33 @@ def run_epoch(model, loader, optimizer, scaler, device, timestep_sampler, sample
                     source_flag=source_flag,
                     mean_loss_weight=args.mean_loss_weight,
                     diff_loss_weight=args.diff_loss_weight,
+                    return_details=True,
                 )
+                pred_target = details["pred_target"]
+                delta_pred = pred_target - ctrl
+                delta_true = target - ctrl
+                aux_loss = torch.tensor(0.0, device=ctrl.device)
+                if args.lambda_topde > 0:
+                    k = min(50, delta_true.shape[1])
+                    top_idx = torch.topk(delta_true.abs(), k=k, dim=1).indices
+                    top_pred = torch.gather(delta_pred, 1, top_idx)
+                    top_true = torch.gather(delta_true, 1, top_idx)
+                    aux_loss = aux_loss + args.lambda_topde * torch.mean((top_pred - top_true) ** 2)
+                if args.lambda_delta_corr > 0:
+                    cos = torch.nn.functional.cosine_similarity(delta_pred, delta_true, dim=1)
+                    aux_loss = aux_loss + args.lambda_delta_corr * torch.mean(1.0 - cos)
+                if args.lambda_centroid > 0:
+                    centroid_loss = torch.tensor(0.0, device=ctrl.device)
+                    counted = 0
+                    for pid in torch.unique(perturb):
+                        mask = perturb == pid
+                        if mask.sum() < 2:
+                            continue
+                        centroid_loss = centroid_loss + torch.mean((delta_pred[mask].mean(0) - delta_true[mask].mean(0)) ** 2)
+                        counted += 1
+                    if counted > 0:
+                        aux_loss = aux_loss + args.lambda_centroid * centroid_loss / counted
+                loss = diff_loss + aux_loss
 
             if train:
                 optimizer.zero_grad(set_to_none=True)
@@ -176,11 +202,26 @@ def main():
             pretrained_gene_weights = gene_loader.load_weights()
 
     atac_dim = processor.atac_dim if getattr(processor, "atac_features", None) is not None else 0
+    def load_output_gene_weights(path, n_genes):
+        if path is None:
+            return None
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"scGPT gene embedding file not found: {path}")
+        arr = np.load(path)
+        if arr.ndim != 2:
+            raise ValueError(f"scGPT gene embedding must be 2D, got {arr.shape}")
+        if arr.shape[0] != n_genes:
+            raise ValueError(f"gene embedding rows {arr.shape[0]} != n_genes {n_genes}")
+        return torch.tensor(arr, dtype=torch.float32)
+    output_gene_weights = load_output_gene_weights(args.scgpt_gene_emb_path, n_genes)
+
     model = PerturbationDiffusionPredictor(
         n_genes=n_genes,
         n_perturbations=n_perts,
         pretrained_weights=pretrained_weights,
         pretrained_gene_weights=pretrained_gene_weights,
+        output_gene_weights=output_gene_weights,
+        gene_prior_scale=args.gene_prior_scale,
         perturb_dim=args.perturb_dim,
         hidden_dims=args.hidden_dims,
         dropout=args.dropout,

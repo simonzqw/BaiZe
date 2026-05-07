@@ -19,6 +19,9 @@ def parse_args():
     p.add_argument("--pretrained_emb", type=str, default=None)
     p.add_argument("--perturbations", type=str, nargs="*", default=None)
     p.add_argument("--split_strategy", type=str, default="perturbation")
+    p.add_argument("--perturb_parse_mode", type=str, default="raw", choices=["raw", "single_gene_suffix_clean", "double_gene_parse"])
+    p.add_argument("--task_mode", type=str, default="single_gene", choices=["single_gene", "translation"])
+    p.add_argument("--perturb_vocab_path", type=str, default=None)
     p.add_argument("--perturb_dim", type=int, default=200)
     p.add_argument("--drug_dim", type=int, default=2048)
     p.add_argument("--hidden_dims", type=int, nargs="+", default=[512, 512, 512])
@@ -69,20 +72,29 @@ def build_model(args, processor, ckpt, device):
         use_atac=True,
         atac_dim=atac_dim,
         cond_dropout=getattr(ckpt_args, "cond_dropout", args.cond_dropout),
+        n_perturb_genes=len(getattr(processor, "perturb_gene_vocab", []) or []),
+        task_mode=getattr(ckpt_args, "task_mode", args.task_mode),
+        n_conditions=getattr(processor, "n_conditions", 0),
     ).to(device)
-    model.load_state_dict(state_dict, strict=True)
+    model.load_state_dict(state_dict, strict=False)
     model.eval()
     return model
 
 
 @torch.no_grad()
 def predict_one(model, processor, perturb_name, mouse_ctrl, mouse_atac, device, sample_steps, guidance_scale, drug_embeddings=None):
-    pert_id = processor.perturb_map[perturb_name]
-    perturb = torch.tensor([pert_id], dtype=torch.long, device=device)
+    control_id = processor.perturb_map.get("control", 0)
+    perturb = torch.tensor([control_id], dtype=torch.long, device=device)
+    if perturb_name not in processor.perturb_gene_to_idx:
+        raise KeyError(f"{perturb_name} not found in perturb_gene_vocab")
+    perturb_gene_idx = torch.tensor([processor.perturb_gene_to_idx[perturb_name]], dtype=torch.long, device=device)
+    is_control = torch.tensor([0.0], dtype=torch.float32, device=device)
     drug_feat = drug_embeddings[perturb] if drug_embeddings is not None else None
     pred = model.predict_single(
         rna_control=mouse_ctrl,
         perturb=perturb,
+        perturb_gene_idx=perturb_gene_idx,
+        is_control=is_control,
         atac_feat=mouse_atac,
         drug_feat=drug_feat,
         sample_steps=sample_steps,
@@ -96,7 +108,13 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(args.out_dir, exist_ok=True)
 
-    processor = DataProcessor(args.human_h5ad, split_strategy=args.split_strategy)
+    processor = DataProcessor(
+        args.human_h5ad,
+        split_strategy=args.split_strategy,
+        perturb_parse_mode=args.perturb_parse_mode,
+        task_mode=args.task_mode,
+        perturb_vocab_path=args.perturb_vocab_path,
+    )
     processor.load_data()
     mouse_ctrl, mouse_atac = load_mouse_context(args.context_dir, device)
     ckpt = torch.load(args.ckpt, map_location=device, weights_only=False)
@@ -109,9 +127,6 @@ def main():
 
     preds = {}
     for p in pert_list:
-        if p not in processor.perturb_map:
-            print(f"skip unknown perturbation: {p}")
-            continue
         preds[p] = predict_one(
             model,
             processor,
