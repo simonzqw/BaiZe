@@ -56,6 +56,14 @@ def main():
             'opposite_direction_top20': float(np.mean(np.sign(pd[top]) != np.sign(td[top]))),
             'n_contexts': int(len(set(ctx[idx]))),
         }
+    vals = [v for v in out.values() if isinstance(v, dict) and 'top20_delta_pearson' in v]
+    if len(vals) > 0:
+        out['summary'] = {
+            'mean_top20_delta_pearson': float(np.mean([x['top20_delta_pearson'] for x in vals])),
+            'mean_top20_delta_mse': float(np.mean([x['top20_delta_mse'] for x in vals])),
+            'mean_opposite_direction_top20': float(np.mean([x['opposite_direction_top20'] for x in vals])),
+            'mean_pearson_delta': float(np.mean([x['pearson_delta'] for x in vals])),
+        }
     with open(args.output_json, 'w', encoding='utf-8') as f:
         json.dump(out, f, indent=2)
 
