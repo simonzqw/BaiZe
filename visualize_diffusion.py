@@ -22,6 +22,7 @@ def get_args():
     parser.add_argument('--model_path', type=str, required=True)
     parser.add_argument('--save_path', type=str, default='diffusion_combo_report.png')
     parser.add_argument('--split_strategy', type=str, default='perturbation', choices=['random', 'perturbation'])
+    parser.add_argument('--perturb_parse_mode', type=str, default='raw', choices=['raw', 'single_gene_suffix_clean', 'double_gene_parse', 'multi_gene_parse'])
     parser.add_argument('--test_size', type=float, default=0.1)
     parser.add_argument('--val_size', type=float, default=0.1)
     parser.add_argument('--cell_line', type=str, default='0')
@@ -69,29 +70,34 @@ def resolve_or_autopick_gene(processor, gene, cell_line_id):
     raise ValueError("未找到可用的非 control 扰动基因。")
 
 
-def load_model(checkpoint, processor, n_genes, n_perts, n_cell_lines, device):
+def load_model(checkpoint, processor, n_genes, n_perts, device):
     state_dict = checkpoint['model_state_dict']
     ckpt_args = checkpoint.get('args', argparse.Namespace())
     perturb_dim = int(state_dict['perturb_embedding.weight'].shape[1])
-    cell_line_dim = int(state_dict['cell_line_embedding.weight'].shape[1])
 
     model = PerturbationDiffusionPredictor(
         n_genes=n_genes,
         n_perturbations=n_perts,
-        n_cell_lines=n_cell_lines,
         perturb_dim=perturb_dim,
-        cell_line_dim=cell_line_dim,
         hidden_dims=getattr(ckpt_args, 'hidden_dims', [512, 512, 512]),
         dropout=getattr(ckpt_args, 'dropout', 0.1),
         timesteps=getattr(ckpt_args, 'timesteps', 1000),
+        target_mode=getattr(ckpt_args, 'target_mode', 'target'),
         dose_dim=getattr(ckpt_args, 'dose_dim', 32),
         time_dim=getattr(ckpt_args, 'time_dim', 128),
         drug_dim=(processor.drug_embeddings.shape[1] if processor.drug_embeddings is not None else 0),
         use_atac=(processor.atac_features is not None),
         atac_dim=(processor.atac_dim if processor.atac_features is not None else 0),
         cond_dropout=getattr(ckpt_args, 'cond_dropout', 0.0),
+        n_perturb_genes=len(getattr(processor, 'perturb_gene_vocab', []) or []),
+        task_mode=getattr(ckpt_args, 'task_mode', 'single_gene'),
+        n_conditions=getattr(processor, 'n_conditions', 0),
     ).to(device)
-    model.load_state_dict(state_dict, strict=True)
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+    if len(missing) > 0:
+        print(f">>> 提示: checkpoint 缺少以下参数（已用随机初始化兼容）: {missing[:8]}{' ...' if len(missing) > 8 else ''}")
+    if len(unexpected) > 0:
+        print(f">>> 提示: checkpoint 存在未使用参数: {unexpected[:8]}{' ...' if len(unexpected) > 8 else ''}")
     if 'ema_state_dict' in checkpoint and checkpoint['ema_state_dict'] is not None:
         for name, p in model.named_parameters():
             if p.requires_grad and name in checkpoint['ema_state_dict']:
@@ -130,17 +136,17 @@ def visualize():
         test_size=args.test_size,
         val_size=args.val_size,
         split_strategy=args.split_strategy,
+        perturb_parse_mode=args.perturb_parse_mode,
         atac_key=args.atac_key,
         atac_bank_path=args.atac_bank_path,
         background_key=args.background_key,
     )
     n_genes, n_perts, n_cls = processor.load_data()
     checkpoint = torch.load(args.model_path, map_location=device, weights_only=False)
-    model = load_model(checkpoint, processor, n_genes, n_perts, n_cls, device)
+    model = load_model(checkpoint, processor, n_genes, n_perts, device)
 
     cell_line_id = resolve_cell_line(processor, args.cell_line)
     control = processor.get_cell_line_control(cell_line_id, device=device).unsqueeze(0)
-    cell_line_tensor = torch.tensor([cell_line_id], dtype=torch.long, device=device)
     atac_feat = processor.get_cell_line_atac(cell_line_id, device=device)
     if atac_feat is not None:
         atac_feat = atac_feat.unsqueeze(0)
@@ -159,44 +165,54 @@ def visualize():
         pid = processor.perturb_map[resolved_gene]
         perturb_ids.append(pid)
 
+        structured = processor.encode_structured_perturbation_names([resolved_gene])
+        structured = {k: v.to(device) for k, v in structured.items()}
         latent = model.get_latent(
             rna_control=control,
             perturb=torch.tensor([pid], dtype=torch.long, device=device),
-            cell_line=cell_line_tensor,
             atac_feat=atac_feat,
+            perturb_gene_idx=structured['perturb_gene_idx'],
+            is_control=structured['is_control'],
         )
         latents.append(latent)
 
         single_pred = model.predict_single(
             rna_control=control,
             perturb=torch.tensor([pid], dtype=torch.long, device=device),
-            cell_line=cell_line_tensor,
             atac_feat=atac_feat,
             sample_steps=args.sample_steps,
             guidance_scale=args.guidance_scale,
+            perturb_gene_idx=structured['perturb_gene_idx'],
+            is_control=structured['is_control'],
         )
         deltas_single.append(single_pred.squeeze(0).detach().cpu().numpy() - control.squeeze(0).detach().cpu().numpy())
 
     if len(latents) == 1:
+        primary_structured = processor.encode_structured_perturbation_names([resolved_genes[0]])
+        primary_structured = {k: v.to(device) for k, v in primary_structured.items()}
         combo_pred = model.predict_single(
             rna_control=control,
             perturb=torch.tensor([perturb_ids[0]], dtype=torch.long, device=device),
-            cell_line=cell_line_tensor,
             atac_feat=atac_feat,
             sample_steps=args.sample_steps,
             guidance_scale=args.guidance_scale,
+            perturb_gene_idx=primary_structured['perturb_gene_idx'],
+            is_control=primary_structured['is_control'],
         )
         delta_additive = deltas_single[0]
     else:
         combo_latent = model.combine_latents(latents, weights=args.weights, mode=args.latent_mode)
+        primary_structured = processor.encode_structured_perturbation_names([resolved_genes[0]])
+        primary_structured = {k: v.to(device) for k, v in primary_structured.items()}
         combo_pred = model.predict_from_latent(
             rna_control=control,
-            cell_line=cell_line_tensor,
             latent=combo_latent,
             perturb=torch.tensor([perturb_ids[0]], dtype=torch.long, device=device),
             atac_feat=atac_feat,
             sample_steps=args.sample_steps,
             guidance_scale=args.guidance_scale,
+            perturb_gene_idx=primary_structured['perturb_gene_idx'],
+            is_control=primary_structured['is_control'],
         )
         delta_additive = np.sum(np.stack(deltas_single, axis=0), axis=0)
 

@@ -185,7 +185,7 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--split_strategy', type=str, default='perturbation', choices=['random', 'perturbation', 'custom'])
     parser.add_argument('--split_col', type=str, default='split')
-    parser.add_argument('--perturb_parse_mode', type=str, default='raw', choices=['raw', 'single_gene_suffix_clean', 'double_gene_parse'])
+    parser.add_argument('--perturb_parse_mode', type=str, default='raw', choices=['raw', 'single_gene_suffix_clean', 'double_gene_parse', 'multi_gene_parse'])
     parser.add_argument('--task_mode', type=str, default=None, choices=['single_gene', 'translation'])
     parser.add_argument('--test_size', type=float, default=0.1)
     parser.add_argument('--val_size', type=float, default=0.1)
@@ -208,8 +208,137 @@ def get_args():
     parser.add_argument('--control_match_scope', type=str, default='global', choices=['global', 'cell_line'])
     parser.add_argument('--control_prototype_mode', type=str, default='topk_weighted', choices=['single', 'topk_mean', 'topk_weighted'])
     parser.add_argument('--control_prototype_temp', type=float, default=1.0)
+    parser.add_argument('--cell_line', type=str, default=None, help='Cell line/context for optional combinatorial evaluation')
+    parser.add_argument('--combo_genes', type=str, nargs='+', default=None, help='Optional two/three/multi-gene diffusion latent-composition case to evaluate')
+    parser.add_argument('--weights', type=float, nargs='*', default=None, help='Optional weights for --combo_genes latent arithmetic')
+    parser.add_argument('--latent_mode', type=str, default='adaptive', choices=['sum', 'mean', 'adaptive'])
     return parser.parse_args()
 
+
+
+
+def resolve_cell_line(processor, cell_line_arg):
+    if cell_line_arg is None:
+        if not processor.cell_line_baselines:
+            raise ValueError("没有可用的 cell-line control baseline。")
+        first_id = sorted(processor.cell_line_baselines.keys())[0]
+        print(f">>> 未传 --cell_line，默认使用: {processor.cell_line_categories[first_id]} (id={first_id})")
+        return first_id
+    try:
+        cl_id = int(cell_line_arg)
+        if cl_id in processor.cell_line_baselines:
+            return cl_id
+    except ValueError:
+        pass
+    if cell_line_arg not in processor.cell_line_map:
+        raise ValueError(f"未找到 cell line: {cell_line_arg}")
+    return processor.cell_line_map[cell_line_arg]
+
+
+def canonical_combo_label(genes):
+    return f"combo|{'+'.join(sorted([str(g) for g in genes]))}"
+
+
+def observed_mean_for_label(processor, cell_line_id, perturb_name):
+    obs = processor.adata.obs
+    cell_col = processor.cell_line_col
+    cl_name = processor.cell_line_categories[cell_line_id]
+    mask = (obs[cell_col].astype(str) == str(cl_name)) & (obs['perturbation'].astype(str) == str(perturb_name))
+    idx = np.where(mask.values)[0]
+    if len(idx) == 0:
+        return None, 0
+    x = processor.adata.X[idx]
+    if hasattr(x, "toarray"):
+        x = x.toarray()
+    return np.asarray(x).mean(axis=0).astype(np.float32), int(len(idx))
+
+
+def evaluate_combo_case(args, processor, model, device, sample_steps, guidance_scale):
+    if args.combo_genes is None:
+        return None
+    if len(args.combo_genes) < 2:
+        raise ValueError("--combo_genes 至少需要两个基因；三基因 case 例如: --combo_genes FOXA2 GATA6 SOX17")
+
+    cell_line_id = resolve_cell_line(processor, args.cell_line)
+    control = processor.get_cell_line_control(cell_line_id, device=device).unsqueeze(0)
+    atac_feat = processor.get_cell_line_atac(cell_line_id, device=device)
+    if atac_feat is not None:
+        atac_feat = atac_feat.unsqueeze(0)
+
+    latents, perturb_ids, resolved_genes = [], [], []
+    for gene in args.combo_genes:
+        if gene not in processor.perturb_map:
+            raise ValueError(f"组合扰动基因不在 perturbation vocab 中: {gene}")
+        resolved_genes.append(gene)
+        pid = processor.perturb_map[gene]
+        perturb_ids.append(pid)
+        structured = processor.encode_structured_perturbation_names([gene])
+        structured = {k: v.to(device) for k, v in structured.items()}
+        latents.append(model.get_latent(
+            rna_control=control,
+            perturb=torch.tensor([pid], dtype=torch.long, device=device),
+            atac_feat=atac_feat,
+            perturb_gene_idx=structured['perturb_gene_idx'],
+            is_control=structured['is_control'],
+        ))
+
+    primary_structured = processor.encode_structured_perturbation_names([resolved_genes[0]])
+    primary_structured = {k: v.to(device) for k, v in primary_structured.items()}
+    combo_latent = model.combine_latents(latents, weights=args.weights, mode=args.latent_mode)
+    pred = model.predict_from_latent(
+        rna_control=control,
+        latent=combo_latent,
+        perturb=torch.tensor([perturb_ids[0]], dtype=torch.long, device=device),
+        atac_feat=atac_feat,
+        sample_steps=sample_steps,
+        guidance_scale=guidance_scale,
+        perturb_gene_idx=primary_structured['perturb_gene_idx'],
+        is_control=primary_structured['is_control'],
+    )
+
+    pred_np = pred.squeeze(0).detach().cpu().numpy()
+    ctrl_np = control.squeeze(0).detach().cpu().numpy()
+    candidate_labels = [canonical_combo_label(resolved_genes)]
+    if len(resolved_genes) == 2:
+        candidate_labels.append(f"double|{'+'.join(sorted(resolved_genes))}")
+    candidate_labels.extend([
+        '+'.join(resolved_genes),
+        '+'.join(sorted(resolved_genes)),
+        '_'.join(resolved_genes),
+        '_'.join(sorted(resolved_genes)),
+    ])
+
+    observed_np, observed_n, observed_label = None, 0, None
+    for label in candidate_labels:
+        observed_np, observed_n = observed_mean_for_label(processor, cell_line_id, label)
+        if observed_np is not None:
+            observed_label = label
+            break
+
+    result = {
+        'genes': resolved_genes,
+        'cell_line': processor.cell_line_categories[cell_line_id],
+        'latent_mode': args.latent_mode,
+        'weights': args.weights,
+        'observed_label': observed_label,
+        'observed_n': observed_n,
+        'prediction_delta_l2': float(np.linalg.norm(pred_np - ctrl_np)),
+    }
+    if observed_np is not None:
+        collector = init_metric_collector(top_ks=(10, 20, 50))
+        update_metric_collector(
+            collector,
+            pred_np,
+            observed_np,
+            ctrl_np,
+            top_ks=(10, 20, 50),
+            dropout_eps=args.dropout_eps,
+            de_mode=args.de_mode,
+            de_topk=args.de_topk,
+            de_quantile=args.de_quantile,
+        )
+        result.update(finalize_metric_collector(collector))
+    return result
 
 def load_model_from_checkpoint(checkpoint, n_genes, n_perts, processor, device, target_mode_override=None):
     ckpt_args = checkpoint.get('args', argparse.Namespace())
@@ -403,6 +532,8 @@ def evaluate():
         )
     perturb_m = finalize_metric_collector(perturb_collector)
 
+    combo_m = evaluate_combo_case(args, processor, model, device, sample_steps, guidance_scale)
+
     final_m = {
         "test_unseen_single_pearson": sample_m["all_pearson"],
         "test_unseen_single_mse": sample_m["all_mse"],
@@ -422,6 +553,8 @@ def evaluate():
         "guidance_scale": guidance_scale,
         "model_path": args.model_path,
     }
+    if combo_m is not None:
+        final_m["combo_case"] = combo_m
 
     os.makedirs(os.path.dirname(args.output_json) or '.', exist_ok=True)
     with open(args.output_json, 'w', encoding='utf-8') as f:

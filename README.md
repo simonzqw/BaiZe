@@ -83,6 +83,19 @@ python train_diffusion.py \
   --amp
 ```
 
+如果训练数据里有 `double_...`、`triple_...` 或 `GENE1+GENE2+GENE3` 这类组合扰动标签，可打开多基因标签解析：
+
+```bash
+python train_diffusion.py \
+  --data_path /path/to/perturb_processed.h5ad \
+  --save_dir ./checkpoints_combo_diffusion \
+  --task_mode single_gene \
+  --split_strategy perturbation \
+  --perturb_parse_mode multi_gene_parse \
+  --preset vnext \
+  --amp
+```
+
 ## 4.2 day4/day6（translation）
 
 ```bash
@@ -112,6 +125,21 @@ python evaluate_diffusion.py \
   --output_json ./checkpoints_xxx/eval_metrics.json
 ```
 
+可额外评估一个三基因组合 case（若 h5ad 里有对应组合标签，会同时输出该 case 的真实均值指标）：
+
+```bash
+python evaluate_diffusion.py \
+  --data_path /path/to/perturb_processed.h5ad \
+  --model_path ./checkpoints_xxx/best_model.pth \
+  --task_mode single_gene \
+  --split_strategy perturbation \
+  --perturb_parse_mode multi_gene_parse \
+  --cell_line K562 \
+  --combo_genes FOXA2 GATA6 SOX17 \
+  --latent_mode adaptive \
+  --output_json ./checkpoints_xxx/eval_metrics_triple.json
+```
+
 对 translation 数据可改为：
 
 ```bash
@@ -134,6 +162,18 @@ python predict_diffusion.py \
   --save_dir ./pred_out
 ```
 
+三基因扰动 case（在原来的双基因命令里追加第 3 个基因即可）：
+
+```bash
+python predict_diffusion.py \
+  --data_path /path/to/perturb_processed.h5ad \
+  --model_path ./checkpoints_xxx/best_model.pth \
+  --cell_line K562 \
+  --perturb_genes FOXA2 GATA6 SOX17 \
+  --latent_mode adaptive \
+  --save_dir ./pred_out_triple
+```
+
 ### 6.2 可视化
 
 ```bash
@@ -143,6 +183,18 @@ python visualize_diffusion.py \
   --cell_line K562 \
   --perturb_genes FOXA2 GATA6 \
   --save_path ./combo_report.png
+```
+
+三基因组合可视化：
+
+```bash
+python visualize_diffusion.py \
+  --data_path /path/to/perturb_processed.h5ad \
+  --model_path ./checkpoints_xxx/best_model.pth \
+  --cell_line K562 \
+  --perturb_genes FOXA2 GATA6 SOX17 \
+  --latent_mode adaptive \
+  --save_path ./triple_combo_report.png
 ```
 
 ---

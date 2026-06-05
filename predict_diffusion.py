@@ -22,6 +22,7 @@ def get_args():
     parser.add_argument('--model_path', type=str, required=True)
     parser.add_argument('--save_dir', type=str, default='./diffusion_predictions')
     parser.add_argument('--cell_line', type=str, required=True, help='Cell line name or numeric id')
+    parser.add_argument('--perturb_parse_mode', type=str, default='raw', choices=['raw', 'single_gene_suffix_clean', 'double_gene_parse', 'multi_gene_parse'])
     parser.add_argument('--perturb_genes', type=str, nargs='+', required=True, help='One gene for single prediction, multiple genes for latent arithmetic')
     parser.add_argument('--weights', type=float, nargs='*', default=None, help='Optional weights for latent arithmetic')
     parser.add_argument('--latent_mode', type=str, default='adaptive', choices=['sum', 'mean', 'adaptive'])
@@ -105,6 +106,7 @@ def main():
     processor = DataProcessor(
         args.data_path,
         split_strategy='perturbation',
+        perturb_parse_mode=args.perturb_parse_mode,
         atac_key=args.atac_key,
         atac_bank_path=args.atac_bank_path,
         background_key=args.background_key,

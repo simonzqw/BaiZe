@@ -104,19 +104,10 @@ class DataProcessor:
             )
         elif self.perturb_parse_mode == 'double_gene_parse':
             print(">>> perturb_parse_mode=double_gene_parse: 解析双扰动标签，避免塌缩成 'double'")
-
-            def _parse_double(x):
-                x = str(x)
-                if x == 'control':
-                    return x
-                if x.startswith('double_'):
-                    parts = [p for p in x.split('_')[1:] if p]
-                    if len(parts) >= 2:
-                        a, b = sorted(parts[:2])
-                        return f"double|{a}+{b}"
-                return x
-
-            self.adata.obs['perturbation'] = self.adata.obs['perturbation'].apply(_parse_double)
+            self.adata.obs['perturbation'] = self.adata.obs['perturbation'].apply(self._parse_double_perturbation_label)
+        elif self.perturb_parse_mode == 'multi_gene_parse':
+            print(">>> perturb_parse_mode=multi_gene_parse: 解析双/三/多基因组合扰动标签")
+            self.adata.obs['perturbation'] = self.adata.obs['perturbation'].apply(self._parse_multi_gene_perturbation_label)
         else:
             print(">>> perturb_parse_mode=raw: 保留原始 perturbation 字符串，不做下划线截断清洗。")
 
@@ -366,6 +357,51 @@ class DataProcessor:
         self.gene_to_idx = {gene: i for i, gene in enumerate(self.adata.var_names)}
         print(f">>> 数据加载完成: {self.adata.n_obs} 细胞, {self.adata.n_vars} 基因")
         return self.adata.n_vars, len(self.perturb_categories), len(self.cell_line_categories)
+
+
+    @staticmethod
+    def _parse_combo_parts(parts):
+        genes = sorted([str(p).strip() for p in parts if str(p).strip()])
+        if len(genes) < 2:
+            return None
+        return genes
+
+    @classmethod
+    def _parse_double_perturbation_label(cls, value):
+        name = str(value)
+        if name == 'control':
+            return name
+        if name.startswith('double_'):
+            genes = cls._parse_combo_parts(name.split('_')[1:])
+            if genes is not None:
+                return f"double|{genes[0]}+{genes[1]}"
+        return name
+
+    @classmethod
+    def _parse_multi_gene_perturbation_label(cls, value):
+        name = str(value)
+        if name == 'control':
+            return name
+
+        if '|' in name and '+' in name:
+            prefix, gene_part = name.split('|', 1)
+            if prefix in {'double', 'triple', 'combo', 'multi'}:
+                genes = cls._parse_combo_parts(gene_part.split('+'))
+                if genes is not None:
+                    return f"combo|{'+'.join(genes)}"
+
+        for prefix in ('double_', 'triple_', 'combo_', 'multi_'):
+            if name.startswith(prefix):
+                genes = cls._parse_combo_parts(name[len(prefix):].split('_'))
+                if genes is not None:
+                    return f"combo|{'+'.join(genes)}"
+
+        if '+' in name and '+ctrl' not in name and '+control' not in name:
+            genes = cls._parse_combo_parts(name.split('+'))
+            if genes is not None:
+                return f"combo|{'+'.join(genes)}"
+
+        return name
 
     def encode_structured_perturbation_names(self, perturb_names):
         if self.perturb_gene_to_idx is None:
