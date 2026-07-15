@@ -1,35 +1,37 @@
-name: Translate repository to English
+name: Apply English translation
 
 on:
-  push:
-    branches: [agent/translate-chinese-to-english]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   translate:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    if: github.head_ref == 'agent/apply-english-translation'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/translate-chinese-to-english
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
-      - name: Run translation and retain diagnostics
-        shell: bash
+      - name: Translate Chinese text without changing code interfaces
+        run: python scripts/translate_chinese_to_english.py
+      - name: Validate Python syntax
+        run: python -m compileall -q .
+      - name: Verify no Chinese text remains
+        run: grep -Fxq 'TOTAL_MATCHING_LINES=0' CHINESE_SCAN.txt
+      - name: Remove temporary translation infrastructure
         run: |
-          set +e
-          python scripts/translate_chinese_to_english.py > TRANSLATION_LOG.txt 2>&1
-          status=$?
-          echo "TRANSLATION_EXIT_STATUS=$status" >> TRANSLATION_LOG.txt
-          python -m compileall -q . >> TRANSLATION_LOG.txt 2>&1
-          echo "COMPILE_EXIT_STATUS=$?" >> TRANSLATION_LOG.txt
-          exit 0
-      - name: Commit translated files and diagnostics
+          rm -f CHINESE_SCAN.txt
+          rm -f scripts/translate_chinese_to_english.py
+          rm -f .github/workflows/scan-chinese.yml
+      - name: Commit translated repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Apply repository translation and record diagnostics [skip ci]" || exit 0
+          git commit -m "Translate all Chinese repository content to English [skip ci]"
           git push
