@@ -1,0 +1,105 @@
+name: Apply curated AutoDL source
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-source:
+    if: github.head_ref == 'agent/apply-real-autodl-source'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Expand curated source payload
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64
+          import io
+          import shutil
+          import zipfile
+
+          payload = Path('.github/scerso_source_payload.b64')
+          raw = base64.b64decode(payload.read_text(encoding='utf-8'))
+          with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+              archive.extractall('.')
+
+          obsolete = [
+              'AUTODL_SYNC_REQUEST.txt',
+              'REPO_AUDIT_MANIFEST.csv',
+              'output.log',
+              'data/gene2vec_dim_200_iter_9.txt',
+              'data/specificity_mlp_model.pth',
+              '.github/scerso_source_payload.b64',
+              '.github/workflows/apply-autodl-source.yml',
+          ]
+          for name in obsolete:
+              path = Path(name)
+              if path.is_dir():
+                  shutil.rmtree(path)
+              elif path.exists():
+                  path.unlink()
+
+          for cache in Path('.').rglob('__pycache__'):
+              if cache.is_dir():
+                  shutil.rmtree(cache)
+          for checkpoint in Path('.').rglob('.ipynb_checkpoints'):
+              if checkpoint.is_dir():
+                  shutil.rmtree(checkpoint)
+
+      - name: Validate Python source
+        run: |
+          python -m compileall -q .
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+
+      - name: Validate shell and JSON files
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do bash -n "$file"; done < <(find . -type f -name '*.sh' -print0)
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          for path in Path('.').rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+          PY
+
+      - name: Verify English-only tracked text
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          cjk = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]')
+          suffixes = {'.py', '.sh', '.md', '.txt', '.json', '.yml', '.yaml'}
+          matches = []
+          for path in Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts or path.suffix not in suffixes:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              for line_no, line in enumerate(text.splitlines(), 1):
+                  if cjk.search(line):
+                      matches.append(f'{path}:{line_no}:{line}')
+          if matches:
+              raise SystemExit('\n'.join(matches[:100]))
+
+      - name: Commit actual source files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          changed=$(git diff --cached --name-only | wc -l)
+          echo "Committing ${changed} changed files"
+          test "$changed" -ge 20
+          git commit -m "Synchronize curated AutoDL source files [skip ci]"
+          git push origin HEAD:${{ github.head_ref }}
