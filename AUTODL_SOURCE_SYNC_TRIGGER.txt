@@ -1,0 +1,2 @@
+Apply the verified curated source archive from /root/autodl-tmp/scERso.
+Archive SHA-256: 605be86244fa3224fc947ab5b90877b688accab6d6fb2caa7b3dd4bb6e422808
