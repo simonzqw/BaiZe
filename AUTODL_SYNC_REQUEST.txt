@@ -1,0 +1,3 @@
+source_archive=scERso_latest_source_20260715_194036.tar.gz
+source_root=/root/autodl-tmp/scERso
+requested_at=2026-07-15
