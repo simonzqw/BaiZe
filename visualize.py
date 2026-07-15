@@ -31,16 +31,16 @@ def visualize():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f">>> 当前请求的可视化基因: {args.heatmap_gene}")
     
-    # 1. 加载 Checkpoint
+    # 1. Load Checkpoint
     print(f">>> 正在加载模型: {args.model_path}")
     checkpoint = torch.load(args.model_path, map_location=device, weights_only=False)
     model_args = checkpoint['args']
     state_dict = checkpoint['model_state_dict']
     if 'ema_state_dict' in checkpoint and checkpoint['ema_state_dict'] is not None:
-        print(">>> 检测到 EMA 权重，优先使用 EMA 权重进行可视化评估")
+        print(">>> EMA weights are detected, giving priority to using EMA weights for visual evaluation")
         state_dict = checkpoint['ema_state_dict']
     
-    # 2. 加载数据
+    # 2. Load data
     print(f">>> 正在加载数据: {args.data_path}")
     processor = DataProcessor(
         args.data_path, 
@@ -57,7 +57,7 @@ def visualize():
     )
     gene_names = processor.adata.var_names.tolist()
     
-    # 3. 还原模型 (V9 架构)
+    # 3. Restore model (V9 architecture)
     has_perturb_encoder = any(k.startswith('perturb_encoder.') for k in state_dict.keys())
     pretrained_weights = state_dict['perturb_feature_bank'] if 'perturb_feature_bank' in state_dict else None
     perturb_weight_for_shape = state_dict['perturb_embedding.weight'] if 'perturb_embedding.weight' in state_dict else None
@@ -93,10 +93,10 @@ def visualize():
     model.eval()
     drug_embeddings = processor.drug_embeddings.to(device) if processor.drug_embeddings is not None else None
     
-    # 4. 执行推理并按扰动分组
+    # 4. Perform inference and group by perturbations
     results_by_pert = {} # {pert_name: {preds: [], targets: [], ctrls: []}}
     
-    print(">>> 正在进行测试集推理评估...")
+    print(">>> Test set inference evaluation in progress...")
     with torch.no_grad():
         for batch in test_loader:
             ctrl = batch['rna_control'].to(device)
@@ -126,13 +126,13 @@ def visualize():
                 results_by_pert[p_name]['t'].append(target_np[i])
                 results_by_pert[p_name]['c'].append(ctrl_np[i])
 
-    # 5. 计算指标与准备绘图数据
-    print(">>> 正在计算多维度评估指标...")
+    # 5. Calculate indicators and prepare drawing data
+    print(">>>Calculating multi-dimensional evaluation indicators...")
     pert_metrics = []
     roc_curves_data = {} 
     bar_plot_data = None
     
-    # 用户指定的 ROC 基因列表
+    # User-specified ROC gene list
     target_roc_genes = ['POLR3K', 'ZNF687', 'EIF1AX', 'DSN1', 'GTPBP4', 'MRPS18A', 'METTL16', 'HOXC10']
     target_heatmap_gene_upper = args.heatmap_gene.upper()
 
@@ -154,7 +154,7 @@ def visualize():
         
         r_g, _ = pearsonr(avg_p, avg_t)
         
-        # 计算 NormMSE (Normalized Mean Squared Error)
+        # Calculate NormSE (Normalized Mean Squared Error)
         # NormMSE = MSE / Var(Target)
         mse = np.mean((avg_p - avg_t)**2)
         var_t = np.var(avg_t)
@@ -163,17 +163,17 @@ def visualize():
         pert_metrics.append({'perturb': p_name, 'auc': gene_auc, 'pearson': r_g, 'norm_mse': norm_mse})
         roc_curves_data[p_name] = (fpr, tpr, gene_auc)
         
-        # 柱状图数据准备 (针对指定的基因)
+        # Histogram data preparation (for specified genes)
         if target_heatmap_gene_upper in p_name.upper():
-            # 找到真实变化最大的 Top 20
+            # Find the Top 20 that actually changed the most
             top_20_idx = np.argsort(np.abs(d_t))[-20:][::-1]
             display_genes = [gene_names[idx] for idx in top_20_idx]
             
-            # 计算 Top 20 重叠率
+            # Calculate Top 20 overlap ratio
             pred_top_20_idx = np.argsort(np.abs(d_p))[-20:]
             overlap = len(set(top_20_idx) & set(pred_top_20_idx))
             
-            # 构建“长表”数据 (Tidy Data)
+            # Build "long table" data (Tidy Data)
             plot_list = []
             for idx in top_20_idx:
                 g = gene_names[idx]
@@ -186,12 +186,12 @@ def visualize():
 
     df_pert = pd.DataFrame(pert_metrics)
 
-    # --- 新增: 打印详细的测试指标表格 ---
+    # --- New: Print detailed test indicator table ---
     print("\n" + "="*50)
     print(f"正在为 {len(df_pert)} 个测试扰动计算 AUC...")
-    print("--- AUC 计算完成 ---")
+    print("---AUC calculation completed ---")
     
-    # 格式化输出表格 (类似于用户提供的格式)
+    # Format the output table (similar to the user-supplied format)
     print(f"{'Perturbation':<15} {'NormMSE':<10} {'Pearson':<10} {'AUC':<10}")
     print("-" * 50)
     
@@ -201,17 +201,17 @@ def visualize():
         print(f"{p_display:<15} {row['norm_mse']:.6f}   {row['pearson']:.6f}   {row['auc']:.6f}")
         
     print("-" * 50)
-    print(f"{'平均值':<15} {df_pert['norm_mse'].mean():.6f}   {df_pert['pearson'].mean():.6f}   {df_pert['auc'].mean():.6f}")
+    print(f"{'average value':<15} {df_pert['norm_mse'].mean():.6f}   {df_pert['pearson'].mean():.6f}   {df_pert['auc'].mean():.6f}")
     print("="*50 + "\n")
 
-    # 保存测试集基因列表
+    # Save test set gene list
     test_genes_list = sorted(df_pert['perturb'].tolist())
     test_genes_path = os.path.join(os.path.dirname(args.save_path) or ".", "test_genes_list.txt")
     with open(test_genes_path, "w") as f:
         f.write("\n".join(test_genes_list))
     print(f">>> 已将 {len(test_genes_list)} 个测试集基因保存至: {test_genes_path}")
 
-    # 如果没找到指定的基因，自动选择测试集中 AUC 最高的基因作为备份
+    # If the specified gene is not found, the gene with the highest AUC in the test set is automatically selected as a backup.
     if bar_plot_data is None:
         print(f"!!! 警告: 基因 {args.heatmap_gene} 不在测试集中。")
         best_gene_row = df_pert.sort_values('auc', ascending=False).iloc[0]
@@ -235,18 +235,18 @@ def visualize():
         df_plot = pd.DataFrame(plot_list)
         bar_plot_data = (df_plot, overlap, best_gene_name)
     
-    # 6. 绘图 (2x2 布局)
+    # 6. Drawing (2x2 layout)
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, axes = plt.subplots(2, 2, figsize=(20, 16))
     
-    # (1) AUC 分布直方图
+    # (1) AUC distribution histogram
     sns.histplot(df_pert['auc'], bins=20, kde=True, ax=axes[0, 0], color='teal', alpha=0.6)
     axes[0, 0].axvline(df_pert['auc'].mean(), color='red', linestyle='--', label=f'Mean AUC: {df_pert["auc"].mean():.3f}')
     axes[0, 0].set_title('Overall Distribution of AUC Scores', fontsize=16, fontweight='bold')
     axes[0, 0].set_xlabel('Target Discovery AUC')
     axes[0, 0].legend()
     
-    # (2) 多线 ROC 曲线 (用户指定基因)
+    # (2) Multi-line ROC curve (user-specified genes)
     available_targets = []
     for tg in target_roc_genes:
         match = [p for p in roc_curves_data.keys() if tg in p]
@@ -269,64 +269,64 @@ def visualize():
     axes[0, 1].set_ylabel('True Positive Rate')
     axes[0, 1].legend(loc="lower right", fontsize=11, frameon=True)
     
-    # (3) Top-20 DE 柱状图 (改为热图)
+    # (3) Top-20 DE histogram (changed to heat map)
     if bar_plot_data:
         df_p, overlap, b_pname = bar_plot_data
         b_pname_display = b_pname if '+ctrl' in b_pname else f"{b_pname}+ctrl"
         
-        # 转换数据格式为 Heatmap 所需的 Matrix
-        # df_p 结构: Gene | Expression | Group
+        # Matrix required to convert data format to Heatmap
+        # df_p structure: Gene | Expression | Group
         
-        # 1. 提取 Control 基线
-        # 注意: set_index 后可能有重复的 Gene (因为 df_p 是 long format)，需要先 filter
+        # 1. Extract Control baseline
+        # Note: There may be duplicate Gene after set_index (because df_p is long format), you need to filter first
         ctrl_expr = df_p[df_p['Group'] == 'Control (Baseline)'].set_index('Gene')['Expression']
         real_expr = df_p[df_p['Group'] == 'Real Perturbation (GT)'].set_index('Gene')['Expression']
         pred_expr = df_p[df_p['Group'] == 'Predicted Perturbation (Model)'].set_index('Gene')['Expression']
         
-        # 2. 计算 Delta (Real - Ctrl, Pred - Ctrl) 并取绝对值
-        # 确保索引对齐
+        # 2. Calculate Delta (Real - Ctrl, Pred - Ctrl) and take the absolute value
+        # Make sure indexes are aligned
         genes = ctrl_expr.index
         real_delta = (real_expr.loc[genes] - ctrl_expr.loc[genes]).abs()
         pred_delta = (pred_expr.loc[genes] - ctrl_expr.loc[genes]).abs()
         
-        # 3. 合并为 DataFrame
+        # 3. Merge into DataFrame
         heatmap_df = pd.DataFrame({'Real_Delta': real_delta, 'Pred_Delta': pred_delta})
         
-        # 4. 排序：按 Real_Delta 降序排列
+        # 4. Sort: Sort by Real_Delta in descending order
         heatmap_df = heatmap_df.sort_values('Real_Delta', ascending=False)
         
-        # 5. 绘制热图 (使用 YlGnBu 颜色，类似提供的示例)
+        # 5. Plot a heatmap (using YlGnBu color, similar to the example provided)
         sns.heatmap(heatmap_df, annot=True, fmt=".3f", cmap="YlGnBu", ax=axes[1, 0], cbar_kws={'label': 'Abs(Delta Expression)'})
         
         axes[1, 0].set_title(f'Comparison of Top 20 DE Genes for {b_pname_display}\n(Overlap: {overlap}/20)', fontsize=16, fontweight='bold')
         axes[1, 0].set_ylabel('Gene Symbol')
-        axes[1, 0].set_xlabel('') # 移除 X 轴标签
+        axes[1, 0].set_xlabel('') # Remove X-axis labels
     
-    # (4) 性能汇总统计
+    # (4) Performance summary statistics
     axes[1, 1].axis('off')
     
-    # --- 新增: 绘制第二个基因的柱状图 (替代纯文本区域的一部分) ---
-    # 我们在 axes[1, 1] 上方绘制柱状图，下方放统计文本
+    # --- New: Draw a histogram of the second gene (replacing part of the plain text area) ---
+    # We draw the histogram above axes[1, 1] and put the statistical text below
     
-    # 分割 axes[1, 1] 区域
+    # Split the axes[1, 1] region
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
     ax_bar = inset_axes(axes[1, 1], width="100%", height="60%", loc='upper center', borderpad=0)
     
-    # 准备第二个基因的数据 (硬编码为 AARS，或者如果 args.heatmap_gene 不是 AARS 则展示 AARS)
+    # Prepare data for second gene (hardcoded to AARS, or display AARS if args.heatmap_gene is not AARS)
     second_gene = "AARS"
     if args.heatmap_gene.upper() == "AARS": 
-        # 如果用户已经选了 AARS，那我们选个别的，比如 AUC 最高的
+        # If the user has already chosen AARS, then we choose something else, such as the one with the highest AUC.
         candidates = df_pert.sort_values('auc', ascending=False)['perturb'].tolist()
         for c in candidates:
             if c != args.heatmap_gene:
                 second_gene = c
                 break
     
-    # 获取第二个基因的数据
-    # 注意：需要检查 second_gene 是否在测试集中
+    # Get data for the second gene
+    # Note: Need to check whether second_gene is in the test set
     sec_data_found = False
     for p_name in results_by_pert.keys():
-        if second_gene in p_name: # 模糊匹配
+        if second_gene in p_name: # fuzzy matching
             sec_p_name = p_name
             sec_data_found = True
             break
@@ -365,7 +365,7 @@ def visualize():
         f"Mean Pearson:   {df_pert['pearson'].mean():.4f}\n"
         f"Mean NormMSE:   {df_pert['norm_mse'].mean():.4f}"
     )
-    # 将文本放在 axes[1, 1] 的底部
+    # Put the text at the bottom of axes[1, 1]
     axes[1, 1].text(0.05, 0.05, summary_text, transform=axes[1, 1].transAxes, fontsize=14, family='monospace', verticalalignment='bottom', bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='grey'))
 
     plt.tight_layout()

@@ -257,8 +257,8 @@ def main():
     has_perturb_encoder = any(k.startswith('perturb_encoder.') for k in state_dict.keys())
     pretrained_weights = state_dict['perturb_feature_bank'] if 'perturb_feature_bank' in state_dict else None
     perturb_weight_for_shape = state_dict['perturb_embedding.weight'] if 'perturb_embedding.weight' in state_dict else None
-    # 兼容旧 checkpoint：存在 perturb_encoder 参数但没有 perturb_feature_bank
-    # 这时用 perturb_embedding.weight 作为 feature_bank 构建语义分支结构，确保能完整加载权重。
+    # Compatible with old checkpoints: perturb_encoder parameter exists but not perturb_feature_bank
+    # At this time, perturb_embedding.weight is used as feature_bank to build a semantic branch structure to ensure that the weights can be loaded completely.
     if pretrained_weights is None and has_perturb_encoder and perturb_weight_for_shape is not None:
         pretrained_weights = perturb_weight_for_shape.detach().clone()
     missing_feature_bank_in_ckpt = has_perturb_encoder and ('perturb_feature_bank' not in state_dict)

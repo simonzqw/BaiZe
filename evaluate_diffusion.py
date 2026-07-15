@@ -220,7 +220,7 @@ def get_args():
 def resolve_cell_line(processor, cell_line_arg):
     if cell_line_arg is None:
         if not processor.cell_line_baselines:
-            raise ValueError("没有可用的 cell-line control baseline。")
+            raise ValueError("No cell-line control baseline available.")
         first_id = sorted(processor.cell_line_baselines.keys())[0]
         print(f">>> 未传 --cell_line，默认使用: {processor.cell_line_categories[first_id]} (id={first_id})")
         return first_id
@@ -257,7 +257,7 @@ def evaluate_combo_case(args, processor, model, device, sample_steps, guidance_s
     if args.combo_genes is None:
         return None
     if len(args.combo_genes) < 2:
-        raise ValueError("--combo_genes 至少需要两个基因；三基因 case 例如: --combo_genes FOXA2 GATA6 SOX17")
+        raise ValueError("--combo_genes requires at least two genes; three-gene case example: --combo_genes FOXA2 GATA6 SOX17")
 
     cell_line_id = resolve_cell_line(processor, args.cell_line)
     control = processor.get_cell_line_control(cell_line_id, device=device).unsqueeze(0)
@@ -355,7 +355,7 @@ def load_model_from_checkpoint(checkpoint, n_genes, n_perts, processor, device, 
     if output_gene_weights is None and 'output_gene_embedding' in state_dict:
         output_gene_weights = state_dict['output_gene_embedding'].detach().cpu().float()
 
-    # 尽量从 checkpoint 恢复语义 perturb embedding 模式
+    # Try to restore semantic perturb embedding mode from checkpoint
     if hasattr(ckpt_args, 'pretrained_emb') and ckpt_args.pretrained_emb:
         loader = GeneEmbeddingLoader(ckpt_args.pretrained_emb, processor.id_to_perturb)
         pretrained_weights = loader.load_weights()

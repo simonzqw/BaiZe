@@ -5,7 +5,7 @@ import os
 
 class GeneEmbeddingLoader:
     """
-    负责加载外部预训练基因向量并与当前数据的扰动 ID 对齐
+Responsible for loading external pre-trained gene vectors and aligning them with the perturbation ID of the current data
     """
     def __init__(self, embedding_path, perturb_id_to_name_map):
         self.embedding_path = embedding_path
@@ -18,35 +18,35 @@ class GeneEmbeddingLoader:
         
         print(f">>> 正在加载预训练向量: {self.embedding_path}")
         
-        # 假设文件是 CSV (gene_name, dim1, dim2...)，无 header 或 index 为基因名
-        # 根据实际下载格式可能需要微调 (例如 gene2vec 通常是 txt 或 bin)
+        # Assume the file is CSV (gene_name, dim1, dim2...), no header or index is the gene name
+        # Fine-tuning may be required depending on the actual download format (for example, gene2vec is usually txt or bin)
         try:
-            # Gene2Vec .txt 格式通常是: 第一行是 (n_genes, dim)，或者直接每行 gene val1 val2...
-            # 我们直接使用 pd.read_csv 并根据内容自动判断
+            # Gene2Vec .txt format is usually: the first line is (n_genes, dim), or directly gene val1 val2...
+            # We use pd.read_csv directly and automatically judge based on the content
             df = pd.read_csv(self.embedding_path, sep='\s+', index_col=0, header=None, engine='python')
             
-            # 如果第一行是元数据 (例如 24447 200)，我们需要过滤掉
+            # If the first line is metadata (e.g. 24447 200), we need to filter out
             if isinstance(df.index[0], (int, float)) or (isinstance(df.index[0], str) and df.index[0].isdigit()):
-                print(">>> 检测到文件首行包含元数据，已跳过。")
+                print(">>> It was detected that the first line of the file contains metadata and has been skipped.")
                 df = df.iloc[1:]
                 
             print(f">>> 已读取 {len(df)} 个基因的预训练向量，维度: {df.shape[1]}")
             
-            # 构建权重矩阵
+            # Build weight matrix
             n_perturbations = len(self.perturb_map)
             emb_dim = df.shape[1]
             weights = np.random.normal(scale=0.02, size=(n_perturbations, emb_dim))
             mean_vec = df.values.mean(axis=0)
             
             hit_count = 0
-            # 遍历我们数据中的所有扰动 ID
+            # Loop through all perturbation IDs in our data
             for idx, gene_name in self.perturb_map.items():
                 if gene_name == 'control':
-                    # Control 可以初始化为全 0 或特定向量
+                    # Control can be initialized to all zeros or to a specific vector
                     weights[idx] = np.zeros(emb_dim)
                     continue
                     
-                # 尝试匹配 (处理大小写不一致等问题)
+                # Try to match (handle case inconsistencies, etc.)
                 if gene_name in df.index:
                     weights[idx] = df.loc[gene_name].values
                     hit_count += 1

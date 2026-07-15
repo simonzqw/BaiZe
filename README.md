@@ -1,67 +1,67 @@
-# scERso 条件扩散模型（Conditional Diffusion for Single-cell Response）
+# scERso conditional diffusion model (Conditional Diffusion for Single-cell Response)
 
-本仓库当前**主线已切换为条件扩散模型**，不再推荐使用旧的 MLP/Transformer 训练路线（`train.py`）。
+The current **main line of this warehouse has been switched to the conditional diffusion model**, and the old MLP/Transformer training route (`train.py`) is no longer recommended.
 
-当前建议统一使用：
-- 训练：`train_diffusion.py`
-- 评估：`evaluate_diffusion.py`
-- 推理/组合/插值：`predict_diffusion.py`
-- 可视化：`visualize_diffusion.py`
+It is currently recommended to use:
+- Training: `train_diffusion.py`
+- Evaluation: `evaluate_diffusion.py`
+- Inference/Combination/Interpolation: `predict_diffusion.py`
+- Visualization: `visualize_diffusion.py`
 
 ---
 
-## 1. 当前主线能力
+## 1. Current mainline capabilities
 
-### 1.1 条件扩散主干
-- 背景-效应解耦：`z_bg`（background）与 `z_eff`（effect）分离编码。
-- 目标模式：`target_mode = target | delta`。
-- 采样与引导：支持 classifier-free guidance、DDIM 步数控制、EMA 权重评估。
+### 1.1 Conditional diffusion backbone
+- Background-effect decoupling: `z_bg` (background) and `z_eff` (effect) are encoded separately.
+- Target mode: `target_mode = target | delta`.
+- Sampling and guidance: supports classifier-free guidance, DDIM step control, and EMA weight evaluation.
 
-### 1.2 双任务模式（重点）
-通过 `--task_mode` 区分两类任务，避免“任务定义与数据不匹配”：
+### 1.2 Dual task mode (key point)
+Use `--task_mode` to distinguish two types of tasks to avoid "mismatch between task definition and data":
 
 1. `single_gene`
-   - 适用于 Adamson 等单基因扰动任务
-   - 条件字段：`perturb_gene_idx`、`is_control`
+   - Suitable for single gene perturbation tasks such as Adamson
+   - Condition fields: `perturb_gene_idx`, `is_control`
 
 2. `translation`
-   - 适用于 two-condition translation（如 day4 -> day6）
-   - 条件字段：`condition_id`、`source_flag`
+   - Suitable for two-condition translation (such as day4 -> day6)
+   - Condition fields: `condition_id`, `source_flag`
 
-### 1.3 数据与 control/reference 机制
-- 支持 `split_strategy = random | perturbation | custom`
-- 在 perturbation zero-shot 设置下，val/test 复用 train control bank，避免无 control split 崩溃
-- 支持 `control_match_mode`、`control_prototype_mode`、`control_prototype_temp`
-
----
-
-## 2. 项目结构（与当前主线相关）
-
-- `train_diffusion.py`：条件扩散训练入口（主入口）
-- `evaluate_diffusion.py`：评估入口（single-cell + perturbation-level 指标）
-- `predict_diffusion.py`：单扰动/组合扰动预测与 latent 插值轨迹输出
-- `visualize_diffusion.py`：组合扰动分析图与诊断可视化
-- `models/scerso_diffusion.py`：条件扩散模型定义
-- `models/diffusion_core.py`：扩散过程实现
-- `utils/data_processor.py`：h5ad 读取、划分、control pool、条件字段构造
-- `docs/diffusion_methodology.md`：方法论说明
-
-> 旧路线文件（如 `train.py`, `evaluate_metrics.py`, `visualize.py`）保留仅供历史对照，不作为当前推荐路径。
+### 1.3 Data and control/reference mechanism
+- Support `split_strategy = random | perturbation | custom`
+- Under the perturbation zero-shot setting, val/test reuses the train control bank to avoid crashes without control split
+- Support `control_match_mode`, `control_prototype_mode`, `control_prototype_temp`
 
 ---
 
-## 3. 环境与依赖
+## 2. Project structure (related to the current main line)
 
-建议：
+- `train_diffusion.py`: Conditional diffusion training entrance (main entrance)
+- `evaluate_diffusion.py`: Evaluation entrance (single-cell + perturbation-level indicators)
+- `predict_diffusion.py`: Single perturbation/combination perturbation prediction and latent interpolation trajectory output
+- `visualize_diffusion.py`: Combined disturbance analysis plot and diagnostic visualization
+- `models/scerso_diffusion.py`: Conditional diffusion model definition
+- `models/diffusion_core.py`: Diffusion process implementation
+- `utils/data_processor.py`: h5ad reading, partitioning, control pool, condition field construction
+- `docs/diffusion_methodology.md`: Methodology Description
+
+> Old route files (such as `train.py`, `evaluate_metrics.py`, `visualize.py`) are retained for historical comparison only and are not used as current recommended paths.
+
+---
+
+## 3. Environment and dependencies
+
+suggestion:
 - Python 3.8+
 - PyTorch
 - scanpy / anndata
 - numpy / scipy / pandas
 - scikit-learn
 - matplotlib / seaborn
-- rdkit（仅当使用 SMILES 药物特征）
+- rdkit (only when using the SMILES drug feature)
 
-并建议设置：
+And recommended settings:
 
 ```bash
 export OMP_NUM_THREADS=1
@@ -69,7 +69,7 @@ export OMP_NUM_THREADS=1
 
 ---
 
-## 4. 训练（主入口）
+## 4. Training (main entrance)
 
 ## 4.1 Adamson（single_gene）
 
@@ -83,7 +83,7 @@ python train_diffusion.py \
   --amp
 ```
 
-如果训练数据里有 `double_...`、`triple_...` 或 `GENE1+GENE2+GENE3` 这类组合扰动标签，可打开多基因标签解析：
+If there are combination perturbation tags such as `double_...`, `triple_...` or `GENE1+GENE2+GENE3` in the training data, multi-gene tag analysis can be turned on:
 
 ```bash
 python train_diffusion.py \
@@ -110,11 +110,11 @@ python train_diffusion.py \
   --amp
 ```
 
-> 快速冒烟可用 `--preset smoke`。
+> Quick smoke available `--preset smoke`.
 
 ---
 
-## 5. 评估
+## 5. Evaluation
 
 ```bash
 python evaluate_diffusion.py \
@@ -125,7 +125,7 @@ python evaluate_diffusion.py \
   --output_json ./checkpoints_xxx/eval_metrics.json
 ```
 
-可额外评估一个三基因组合 case（若 h5ad 里有对应组合标签，会同时输出该 case 的真实均值指标）：
+A three-gene combination case can be additionally evaluated (if there is a corresponding combination label in h5ad, the true mean indicator of the case will be output at the same time):
 
 ```bash
 python evaluate_diffusion.py \
@@ -140,7 +140,7 @@ python evaluate_diffusion.py \
   --output_json ./checkpoints_xxx/eval_metrics_triple.json
 ```
 
-对 translation 数据可改为：
+The translation data can be changed to:
 
 ```bash
 --task_mode translation --split_strategy custom --split_col split
@@ -148,9 +148,9 @@ python evaluate_diffusion.py \
 
 ---
 
-## 6. 推理与可视化
+## 6. Reasoning and Visualization
 
-### 6.1 预测/组合/插值
+### 6.1 Prediction/Combination/Interpolation
 
 ```bash
 python predict_diffusion.py \
@@ -162,7 +162,7 @@ python predict_diffusion.py \
   --save_dir ./pred_out
 ```
 
-三基因扰动 case（在原来的双基因命令里追加第 3 个基因即可）：
+Three-gene perturbation case (just add a third gene to the original two-gene command):
 
 ```bash
 python predict_diffusion.py \
@@ -174,7 +174,7 @@ python predict_diffusion.py \
   --save_dir ./pred_out_triple
 ```
 
-### 6.2 可视化
+### 6.2 Visualization
 
 ```bash
 python visualize_diffusion.py \
@@ -185,7 +185,7 @@ python visualize_diffusion.py \
   --save_path ./combo_report.png
 ```
 
-三基因组合可视化：
+Three-gene combination visualization:
 
 ```bash
 python visualize_diffusion.py \
@@ -199,22 +199,22 @@ python visualize_diffusion.py \
 
 ---
 
-## 7. 常见问题
+## 7. FAQ
 
-### Q1: `adata.obs 缺少自定义划分列: split`
-你用了 `split_strategy=custom`，但数据里没有 `obs['split']`。可改成：
+### Q1: `adata.obs Missing custom partition column: split`
+You used `split_strategy=custom`, but there is no `obs['split']` in the data. Can be changed to:
 
 ```bash
 --split_strategy perturbation
 ```
 
-或先在 h5ad 里准备 `split` 列。
+Or prepare the `split` column in h5ad first.
 
-### Q2: 明明传了 `--split_strategy perturbation`，日志却显示 custom
-`--preset` 现在只会覆盖“未显式设置”的参数；显式传参会保留。若仍异常，请确认命令行没有重复传参。
+### Q2: `--split_strategy perturbation` is clearly transmitted, but the log shows custom
+`--preset` will now only overwrite "not explicitly set" parameters; explicit parameters will be retained. If the error persists, please confirm that parameters are not passed repeatedly on the command line.
 
-### Q3: val/test 报 control pool 为空
-在 perturbation zero-shot 下，val/test 复用 train control bank。若仍报错，通常是训练集本身没有 control 样本，需要先检查原始数据。
+### Q3: val/test reports that the control pool is empty
+Under perturbation zero-shot, val/test reuses the train control bank. If an error is still reported, it is usually because the training set itself does not have control samples, and you need to check the original data first.
 
 ---
 

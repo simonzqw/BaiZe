@@ -67,7 +67,7 @@ def resolve_or_autopick_gene(processor, gene, cell_line_id):
     for g in processor.perturb_categories:
         if g != 'control':
             return g, True
-    raise ValueError("未找到可用的非 control 扰动基因。")
+    raise ValueError("No available non-control perturbation genes were found.")
 
 
 def load_model(checkpoint, processor, n_genes, n_perts, device):
@@ -151,7 +151,7 @@ def visualize():
     if atac_feat is not None:
         atac_feat = atac_feat.unsqueeze(0)
     if len(args.perturb_genes) > 1 and atac_feat is not None:
-        print(">>> 提示: 可视化组合扰动时默认复用同一 cell-line baseline ATAC，未显式建模组合特异 ATAC 变化。")
+        print(">>> Tip: When visualizing combined perturbations, the same cell-line baseline ATAC is reused by default, and combination-specific ATAC changes are not explicitly modeled.")
 
     latents = []
     deltas_single = []

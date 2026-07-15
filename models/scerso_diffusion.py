@@ -186,7 +186,7 @@ class PerturbationDiffusionPredictor(nn.Module):
         self.drug_condition_mode = drug_condition_mode
         self.n_conditions = int(n_conditions) if n_conditions is not None else 0
         if target_mode not in {"target", "delta"}:
-            raise ValueError("target_mode 必须是 'target' 或 'delta'")
+            raise ValueError("target_mode must be 'target' or 'delta'")
         self.target_mode = target_mode
 
         if pretrained_weights is not None:
@@ -596,11 +596,11 @@ class PerturbationDiffusionPredictor(nn.Module):
         mode: str = "sum",
     ) -> torch.Tensor:
         if len(latents) == 0:
-            raise ValueError("latents 不能为空。")
+            raise ValueError("latents cannot be empty.")
         if weights is None:
             weights = [1.0] * len(latents)
         if len(weights) != len(latents):
-            raise ValueError("weights 长度必须和 latents 一致。")
+            raise ValueError("The length of weights must be the same as latents.")
 
         stacked = torch.stack(latents, dim=1)  # [B, K, D]
         weight_tensor = torch.tensor(weights, dtype=stacked.dtype, device=stacked.device)
@@ -640,7 +640,7 @@ class PerturbationDiffusionPredictor(nn.Module):
         steps: int = 10,
     ) -> torch.Tensor:
         if steps < 2:
-            raise ValueError("steps 必须 >= 2。")
+            raise ValueError("steps must >= 2.")
         alphas = torch.linspace(0.0, 1.0, steps=steps, device=z_start.device, dtype=z_start.dtype).view(steps, 1, 1)
         return (1.0 - alphas) * z_start.unsqueeze(0) + alphas * z_end.unsqueeze(0)
 

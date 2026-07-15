@@ -2,14 +2,14 @@ from torch.utils.data import Dataset, DataLoader
 
 class PerturbationDataset(Dataset):
     """
-    单细胞扰动数据集
+Single cell perturbation data set
     """
     def __init__(self, rna_tensors, perturb_tensors, label_tensors):
         """
         Args:
-            rna_tensors (torch.Tensor): 表达矩阵
-            perturb_tensors (torch.Tensor): 扰动 ID
-            label_tensors (torch.Tensor): 标签 (1=匹配, 0=不匹配)
+rna_tensors (torch.Tensor): expression matrix
+perturb_tensors (torch.Tensor): perturbation ID
+label_tensors (torch.Tensor): labels (1=match, 0=no match)
         """
         self.rna = rna_tensors
         self.perturb = perturb_tensors
@@ -21,7 +21,7 @@ class PerturbationDataset(Dataset):
     def __getitem__(self, idx):
         return {
             'rna': self.rna[idx],
-            'perturb': self.perturb[idx].long(), # 确保是长整型用于 Embedding
+            'perturb': self.perturb[idx].long(), # Make sure it is a long integer for Embedding
             'label': self.label[idx].float()
         }
 

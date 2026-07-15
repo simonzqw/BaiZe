@@ -70,7 +70,7 @@ class DataProcessor:
 
     def _prepare_metadata(self):
         if 'product_name' in self.adata.obs and 'perturbation' not in self.adata.obs:
-            print(">>> 检测到 SCI-Plex 格式，正在适配列名...")
+            print(">>> SCI-Plex format detected, adapting column names...")
             self.adata.obs['perturbation'] = self.adata.obs['product_name'].astype(str)
             self.adata.obs.loc[self.adata.obs['perturbation'].isin(['Vehicle', 'control']), 'perturbation'] = 'control'
 
@@ -78,7 +78,7 @@ class DataProcessor:
         # Do not auto-create obs['cell_line'] from obs['cell_type'].
 
         if 'condition' in self.adata.obs and 'perturbation' not in self.adata.obs:
-            print(">>> 检测到 Adamson 格式，正在适配列名...")
+            print(">>> Adamson format detected, adapting column names...")
             self.adata.obs['perturbation'] = self.adata.obs['condition'].astype(str)
 
             def clean_adamson_pert(x):
@@ -98,18 +98,18 @@ class DataProcessor:
         ctrl_aliases = {"DMSO","dmso","Vehicle","vehicle","control","Control","CTRL","ctrl"}
         self.adata.obs.loc[self.adata.obs["perturbation"].isin(ctrl_aliases), "perturbation"] = "control"
         if self.perturb_parse_mode == 'single_gene_suffix_clean':
-            print(">>> perturb_parse_mode=single_gene_suffix_clean: 仅清理后缀噪声 (如 +ctrl / +control)")
+            print(">>> perturb_parse_mode=single_gene_suffix_clean: Only clean suffix noise (such as +ctrl / +control)")
             self.adata.obs['perturbation'] = self.adata.obs['perturbation'].apply(
                 lambda x: str(x).replace('+control', '').replace('+ctrl', '') if str(x) != 'control' else 'control'
             )
         elif self.perturb_parse_mode == 'double_gene_parse':
-            print(">>> perturb_parse_mode=double_gene_parse: 解析双扰动标签，避免塌缩成 'double'")
+            print(">>> perturb_parse_mode=double_gene_parse: parse double perturbation tags to avoid collapse into 'double'")
             self.adata.obs['perturbation'] = self.adata.obs['perturbation'].apply(self._parse_double_perturbation_label)
         elif self.perturb_parse_mode == 'multi_gene_parse':
-            print(">>> perturb_parse_mode=multi_gene_parse: 解析双/三/多基因组合扰动标签")
+            print(">>> perturb_parse_mode=multi_gene_parse: parse double/triple/multi gene combination perturbation tags")
             self.adata.obs['perturbation'] = self.adata.obs['perturbation'].apply(self._parse_multi_gene_perturbation_label)
         else:
-            print(">>> perturb_parse_mode=raw: 保留原始 perturbation 字符串，不做下划线截断清洗。")
+            print(">>> perturb_parse_mode=raw: Keep the original perturbation string without underline truncation and cleaning.")
 
         if self.task_mode == 'drug':
             self.adata.obs['perturbation']=self.adata.obs[self.perturb_col].astype(str)
@@ -155,7 +155,7 @@ class DataProcessor:
                 is_control.append(0)
         self.adata.obs['perturb_gene_idx'] = np.array(perturb_gene_idx, dtype=np.int64)
         self.adata.obs['is_control'] = np.array(is_control, dtype=np.int64)
-        print(">>> 已写入 adata.obs: perturb_gene_idx / is_control")
+        print(">>> Written to adata.obs: perturb_gene_idx/is_control")
 
         if self.task_mode == 'translation':
             cond_col = 'condition' if 'condition' in self.adata.obs else 'perturbation'
@@ -202,7 +202,7 @@ class DataProcessor:
         if 'smiles' not in self.adata.obs:
             return
 
-        print(">>> 检测到 SMILES 信息，正在提取药物化学特征 (Morgan Fingerprint)...")
+        print(">>> SMILES information detected, extracting medicinal chemical signature (Morgan Fingerprint)...")
         unique_perts = self.adata.obs[['perturbation', 'smiles']].drop_duplicates('perturbation')
         pert_to_smiles = dict(zip(unique_perts['perturbation'], unique_perts['smiles']))
 
@@ -230,7 +230,7 @@ class DataProcessor:
             self.doses = None
             return
 
-        print(">>> 检测到剂量信息，正在处理 Dose 特征...")
+        print(">>> Dose information detected, processing Dose feature...")
         doses = self.adata.obs['dose'].values.astype(np.float32)
         if self.task_mode=='drug' and 'is_control' in self.adata.obs:
             doses[self.adata.obs['is_control'].values.astype(np.int64)==1]=0.0
@@ -270,11 +270,11 @@ class DataProcessor:
                 bank_genes = [str(x) for x in bank['genes'].tolist()]
                 adata_genes = [str(x) for x in self.adata.var_names.tolist()]
                 if len(bank_genes) != len(adata_genes) or any(g1 != g2 for g1, g2 in zip(bank_genes, adata_genes)):
-                    raise ValueError("atac_bank['genes'] 与当前 h5ad.var_names 不一致，请先按同一基因顺序构建 atac_bank。")
+                    raise ValueError("atac_bank['genes'] is inconsistent with the current h5ad.var_names, please build atac_bank in the same gene sequence first.")
 
             bank_map = {k: bank[k].astype(np.float32) for k in bank.files if k != 'genes'}
             if len(bank_map) == 0:
-                raise ValueError("atac_bank 中未找到背景向量键（除 'genes' 外）。")
+                raise ValueError("No background vector key found in atac_bank (other than 'genes').")
 
             if background_key in self.adata.obs:
                 bg_values = self.adata.obs[background_key].astype(str).values
@@ -336,7 +336,7 @@ class DataProcessor:
             background_key=self.background_key,
         )
 
-        print(">>> 正在计算 control context 基线表达谱...")
+        print(">>>Calculating control context baseline expression profile...")
         self.cell_line_baselines = {}
         cell_line_values = self.adata.obs[self.cell_line_col].values
         pert_values = self.adata.obs['perturbation'].values
@@ -405,7 +405,7 @@ class DataProcessor:
 
     def encode_structured_perturbation_names(self, perturb_names):
         if self.perturb_gene_to_idx is None:
-            raise ValueError("perturb_gene vocab 尚未初始化，请先调用 load_data()。")
+            raise ValueError("perturb_gene vocab has not been initialized yet, please call load_data() first.")
 
         p_gene_idx, p_is_control = [], []
         pad_idx = self.perturb_gene_to_idx[self.pad_gene_token]
@@ -474,7 +474,7 @@ class DataProcessor:
             if len(train_idx) == 0 or len(val_idx) == 0 or len(test_idx) == 0:
                 raise ValueError(f"自定义划分列 {self.split_col} 中 train/val/test 至少有一个为空。")
         elif self.split_strategy == 'perturbation':
-            print(">>> 采用按扰动基因划分策略 (Zero-shot 分层模式)...")
+            print(">>> Adopt the strategy of dividing by perturbed genes (Zero-shot hierarchical mode)...")
             real_perts = [p for p in self.perturb_categories if p != 'control']
             np.random.seed(42)
             np.random.shuffle(real_perts)
@@ -498,7 +498,7 @@ class DataProcessor:
 
             print(f">>> 划分结果: 训练集 {len(train_p)} 基因(+Control), 验证集 {len(val_p)} 基因, 测试集 {len(test_p)} 基因")
         else:
-            print(">>> 采用随机划分策略...")
+            print(">>> Use random partitioning strategy...")
             train_idx, temp = train_test_split(indices, test_size=(self.val_size + self.test_size), random_state=42)
             val_idx, test_idx = train_test_split(temp, test_size=0.5, random_state=42)
 
@@ -521,13 +521,13 @@ class DataProcessor:
         train_control_pool_coarse, train_control_pool_fine = build_control_pools(train_ctrl_idx)
         val_control_pool_coarse, val_control_pool_fine = build_control_pools(val_ctrl_idx)
         test_control_pool_coarse, test_control_pool_fine = build_control_pools(test_ctrl_idx)
-        # 对于 perturbation zero-shot，val/test 通常没有 control。
-        # 因此统一复用 train control 作为 reference control bank。
+        # For perturbation zero-shot, val/test usually has no control.
+        # Therefore, the train control is uniformly reused as the reference control bank.
         ref_control_pool_coarse = train_control_pool_coarse
         ref_control_pool_fine = train_control_pool_fine if batch_ids is not None else None
 
         if len(all_ctrl_idx) == 0:
-            raise ValueError("未找到 control 样本，无法构建 control pool。")
+            raise ValueError("Control sample not found, control pool cannot be constructed.")
 
         class GenerativeDataset(Dataset):
             def __init__(
@@ -657,7 +657,7 @@ class DataProcessor:
             def _get_control_candidates(self, local_idx, c_id):
                 if self.control_match_scope == 'global':
                     if self.global_control_fallback.size == 0:
-                        raise ValueError("当前 split 内不存在可用 control 样本（global 模式）。")
+                        raise ValueError("There are no control samples available in the current split (global mode).")
                     return self.global_control_fallback
                 if self.local_batch_ids is not None and self.control_pool_fine is not None:
                     b_id = int(self.local_batch_ids[local_idx])
@@ -667,7 +667,7 @@ class DataProcessor:
                 if c_id in self.control_pool_coarse and len(self.control_pool_coarse[c_id]) > 0:
                     return self.control_pool_coarse[c_id]
                 if self.global_control_fallback.size == 0:
-                    raise ValueError("当前 split 内不存在可用 control 样本，无法为非-control 样本匹配输入 control。")
+                    raise ValueError("There are no control samples available within the current split, and control cannot be entered for matching non-control samples.")
                 return self.global_control_fallback
 
             def _sample_control_index(self, local_idx, c_id):
@@ -700,7 +700,7 @@ class DataProcessor:
             def _build_control_prototype(self, local_idx, c_id):
                 ranked_candidates, ranked_dists = self._rank_control_candidates(local_idx, c_id)
                 if len(ranked_candidates) == 0:
-                    raise ValueError("未找到可用于构造 control prototype 的候选 control。")
+                    raise ValueError("No candidate control was found for constructing the control prototype.")
 
                 k = min(self.control_match_k, len(ranked_candidates))
                 if ranked_dists is None and self.is_train and len(ranked_candidates) > k:

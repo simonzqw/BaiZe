@@ -209,7 +209,7 @@ class PerturbationPredictor(nn.Module):
             # Semantic mode trains perturb_encoder instead of raw ID embedding.
             return
         self.perturb_embedding.weight.requires_grad = not freeze
-        state = "冻结" if freeze else "解冻"
+        state = "freeze" if freeze else "thaw"
         print(f">>> 扰动 Embedding 层已 {state}")
 
 

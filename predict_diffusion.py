@@ -82,7 +82,7 @@ def resolve_or_autopick_gene(processor, gene, cell_line_id):
     for g in processor.perturb_categories:
         if g != 'control':
             return g, True
-    raise ValueError("未找到可用的非 control 扰动基因。")
+    raise ValueError("No available non-control perturbation genes were found.")
 
 
 def get_observed_mean_expression(processor, cell_line_id, perturb_name):
@@ -149,7 +149,7 @@ def main():
     if atac_feat is not None:
         atac_feat = atac_feat.unsqueeze(0)
     if len(args.perturb_genes) > 1 and atac_feat is not None:
-        print(">>> 提示: 组合扰动当前默认复用同一 cell-line baseline ATAC；若组合引发显著染色质变化，建议外部构建组合特异 ATAC 条件。")
+        print(">>> Tip: Combination perturbation currently multiplexes the same cell-line baseline ATAC by default; if the combination causes significant chromatin changes, it is recommended to externally construct combination-specific ATAC conditions.")
 
     latents = []
     perturb_ids = []

@@ -17,24 +17,24 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 class WeightedMSELoss(nn.Module):
     def __init__(self, alpha=0.1, gamma=2.0):
         super(WeightedMSELoss, self).__init__()
-        self.alpha = alpha # GlobalMSE 权重
-        self.gamma = gamma # DeltaMSE 放大系数
+        self.alpha = alpha # GlobalMSE weight
+        self.gamma = gamma # DeltaMSE amplification factor
 
     def forward(self, pred, target, ctrl, is_control=None):
         delta_true = target - ctrl
         delta_pred = pred - ctrl
         
-        # 1. DeltaMSE (带加权)
-        # 根据真实变化量的绝对值进行加权，强迫模型拟合剧烈变化的基因
+        # 1. DeltaMSE (with weighting)
+        # Weighting according to the absolute value of the true change forces the model to fit genes that change drastically
         weights = 1.0 + self.gamma * torch.abs(delta_true)
-        weights = weights / weights.mean() # 归一化权重
+        weights = weights / weights.mean() # normalized weight
         delta_loss = torch.mean(weights * (delta_pred - delta_true)**2)
         
-        # 2. GlobalMSE (基础保底)
+        # 2. GlobalMSE (basic guarantee)
         global_loss = torch.mean((pred - target)**2)
         
-        # 3. Control 正则化 (如果输入是 control 样本，则 delta 必须为 0)
-        # 优先只在 control 样本上施加约束，避免过度抑制真实扰动信号
+        # 3. Control regularization (if the input is a control sample, delta must be 0)
+        # Prioritize only imposing constraints on control samples to avoid over-suppression of real disturbance signals
         if is_control is not None and torch.any(is_control):
             ctrl_reg = torch.mean((delta_pred[is_control])**2)
         else:
@@ -51,7 +51,7 @@ class EarlyStopping:
         self.early_stop = False
 
     def __call__(self, score):
-        # 注意：现在监控的是 Top50 Pearson，越高越好
+        # Note: The current monitoring is Top50 Pearson, the higher the better
         if self.best_score is None:
             self.best_score = score
         elif score < self.best_score + self.min_delta:
@@ -133,7 +133,7 @@ def get_args():
     parser.add_argument('--test_size', type=float, default=0.1, help='Test set ratio (e.g. 0.1 for 10%)')
     parser.add_argument('--val_size', type=float, default=0.1, help='Validation set ratio (e.g. 0.1 for 10%)')
 
-    # 模型架构参数
+    # Model architecture parameters
     parser.add_argument('--perturb_dim', type=int, default=200)
     parser.add_argument('--cell_line_dim', type=int, default=32)
     parser.add_argument('--drug_dim', type=int, default=2048, help='Morgan Fingerprint dimension')
@@ -157,11 +157,11 @@ def _safe_pearson(x, y):
 
 def calculate_metrics(pred, target, ctrl, de_eps=1e-3):
     """
-    返回更完整的指标:
-    - 全谱: all_mse / all_pearson
+Return a more complete metric:
+- Full spectrum: all_mse / all_pearson
     - Delta: delta_pearson
     - TopK (K=10/20/50): mse / pearson / recall
-    - all_de: 对所有非dropout(真实delta!=0)基因统计 mse / pearson
+- all_de: Statistics for all non-dropout (real delta!=0) genes mse / pearson
     """
     top_ks = [10, 20, 50]
     collector = {
@@ -207,7 +207,7 @@ def calculate_metrics(pred, target, ctrl, de_eps=1e-3):
                 collector[f'top{k}_pearson'].append(r_top)
             collector[f'top{k}_recall'].append(float(len(set(top_true) & set(top_pred)) / max(k_eff, 1)))
 
-    # 聚合
+    # polymerization
     return {
         k: (float(np.mean(v)) if len(v) > 0 else 0.0)
         for k, v in collector.items()
@@ -217,7 +217,7 @@ def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f">>> scERso V7 启动 | 任务: 生成式扰动预测 | 策略: {args.split_strategy}")
 
-    # 1. 数据准备
+    # 1. Data preparation
     processor = DataProcessor(
         args.data_path, 
         test_size=args.test_size, 
@@ -227,8 +227,8 @@ def train():
     n_genes, n_perts, n_cell_lines = processor.load_data()
     if args.split_strategy == 'perturbation' and args.pretrained_emb is None and processor.drug_embeddings is None:
         raise ValueError(
-            "当前是 unseen perturbation 划分，必须提供 side information（如 --pretrained_emb 或 SMILES 药物特征），"
-            "否则 perturbation 只能依赖 ID embedding，泛化会明显受限。"
+            "Currently it is an unseen perturbation partition, side information must be provided (such as --pretrained_emb or SMILES drug characteristics),"
+            "Otherwise, perturbation can only rely on ID embedding, and generalization will be significantly limited."
         )
     train_loader, val_loader, test_loader = processor.prepare_loaders(
         batch_size=args.batch_size,
@@ -241,7 +241,7 @@ def train():
     atac_dim = processor.atac_features.shape[1] if getattr(processor, 'atac_features', None) is not None else 0
     args.atac_dim = int(atac_dim)
     
-    # 2. 加载预训练向量
+    # 2. Load pre-training vectors
     pretrained_weights = None
     if args.pretrained_emb:
         loader = GeneEmbeddingLoader(args.pretrained_emb, processor.id_to_perturb)
@@ -252,13 +252,13 @@ def train():
         if 'perturb_feature_bank' in resume_state:
             pretrained_weights = resume_state['perturb_feature_bank'].float()
 
-    # 3. 初始化模型
+    # 3. Initialize the model
     model = PerturbationPredictor(
         n_genes, n_perts, n_cell_lines, 
         pretrained_weights=pretrained_weights,
         perturb_dim=args.perturb_dim,
         cell_line_dim=args.cell_line_dim,
-        drug_dim=args.drug_dim, # 新增药物维度参数
+        drug_dim=args.drug_dim, # Added drug dimension parameters
         hidden_dims=args.hidden_dims,
         dropout=args.dropout,
         d_model=args.d_model,
@@ -269,10 +269,10 @@ def train():
         atac_dim=atac_dim
     ).to(device)
 
-    # 损失函数: 加权 MSE (根据 Delta 绝对值加权，抑制基线红利)
+    # Loss function: Weighted MSE (weighted according to the absolute value of Delta, suppressing baseline dividends)
     criterion = WeightedMSELoss() 
     
-    # 参数分组优化
+    # Parameter grouping optimization
     perturb_params = []
     if model.use_semantic_perturb and model.perturb_encoder is not None:
         perturb_params = list(model.perturb_encoder.parameters())
@@ -294,9 +294,9 @@ def train():
     drug_embeddings = processor.drug_embeddings.to(device) if processor.drug_embeddings is not None else None
     ema = ExponentialMovingAverage(model, decay=args.ema_decay)
 
-    # 4. 训练循环
+    # 4. Training loop
     if not os.path.exists(args.save_dir): os.makedirs(args.save_dir)
-    best_score = -float('inf') # 监控 -Top20 MSE，越大越好（等价于 Top20 MSE 越小越好）
+    best_score = -float('inf') # Monitoring -Top20 MSE, bigger is better (equivalent to Top20 MSE, smaller is better)
     early_stopper = EarlyStopping(patience=args.patience)
     warmup_epochs = 5
     start_epoch = 0
@@ -328,7 +328,7 @@ def train():
                     base_lr = args.lr * 0.1
                 param_group['lr'] = base_lr * curr_lr_factor
 
-        # 冻结策略
+        # freeze policy
         if args.pretrained_emb:
             is_frozen = epoch < args.freeze_epochs
             model.freeze_perturbation_embedding(is_frozen)
@@ -349,19 +349,19 @@ def train():
             atac_feat = batch['atac_feat'].to(device) if 'atac_feat' in batch else None
             is_control = (perturb == control_id) if control_id is not None else None
             
-            # 药物特征处理 (如果有)
+            # Drug feature processing (if any)
             drug_feat = None
             if drug_embeddings is not None:
-                # 根据 perturb index 获取对应的 drug feature
+                # Get the corresponding drug feature according to perturb index
                 drug_feat = drug_embeddings[perturb]
             
-            # 传递 drug_feat 和 dose 到 forward
+            # Pass drug_feat and dose to forward
             with torch.amp.autocast(
                 "cuda", enabled=(args.amp and device.type == "cuda")
             ):
                 outputs = model(ctrl_rna, perturb, cell_line, drug_feat=drug_feat, dose=dose, atac_feat=atac_feat)
                 
-                # 使用加权损失
+                # Use weighted loss
                 loss = criterion(outputs, target_rna, ctrl_rna, is_control=is_control)
             
             scaler.scale(loss / args.accum_steps).backward()
@@ -385,7 +385,7 @@ def train():
             ema.update(model)
             optimizer.zero_grad()
 
-        # 验证集评估
+        # Validation set evaluation
         model.eval()
         val_loss = 0
         all_metrics = []
@@ -399,7 +399,7 @@ def train():
                 atac_feat = batch['atac_feat'].to(device) if 'atac_feat' in batch else None
                 is_control = (perturb == control_id) if control_id is not None else None
                 
-                # 药物特征处理 (验证集)
+                # Drug feature processing (validation set)
                 drug_feat = None
                 if drug_embeddings is not None:
                     drug_feat = drug_embeddings[perturb]
@@ -409,13 +409,13 @@ def train():
                 loss = criterion(outputs, target, ctrl, is_control=is_control)
                 val_loss += loss.item()
                 
-                # 计算多维指标
+                # Calculate multidimensional indicators
                 batch_m = calculate_metrics(outputs.cpu().numpy(), target.cpu().numpy(), ctrl.cpu().numpy())
                 all_metrics.append(batch_m)
         
         avg_train_loss = train_loss / len(train_loader)
         avg_val_loss = val_loss / len(val_loader)
-        # 聚合所有 batch 的指标
+        # Aggregate the metrics of all batches
         final_m = {k: np.mean([m[k] for m in all_metrics]) for k in all_metrics[0].keys()} if all_metrics else {}
         
         print(
@@ -428,8 +428,8 @@ def train():
         if epoch >= warmup_epochs:
             main_scheduler.step()
         
-        # 核心：以 Top20 MSE 作为保存和早停依据（越小越好）
-        current_score = -final_m.get('top20_mse', float('inf'))  # 越小越好 -> 取负号后越大越好
+        # Core: Use Top20 MSE as the basis for saving and early stopping (the smaller, the better)
+        current_score = -final_m.get('top20_mse', float('inf'))  # The smaller the better -> after taking the negative sign the bigger the better
         if current_score > best_score:
             best_score = current_score
             torch.save({
@@ -443,7 +443,7 @@ def train():
             }, os.path.join(args.save_dir, "best_model.pth"))
             print(f"*** 发现更优模型 (Val Top20 DE MSE: {-best_score:.6f}), 已保存")
 
-        # 每个 epoch 保存 checkpoint，并仅保留最近 N 个
+        # Save checkpoints every epoch and only keep the latest N
         epoch_ckpt = {
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -468,13 +468,13 @@ def train():
             print(f"!!! 早停触发 (核心基因拟合已达瓶颈)")
             break
 
-    # 5. 最终测试集评估 (使用保存的最佳权重)
+    # 5. Final test set evaluation (using the best saved weights)
     print("\n" + "="*30)
-    print(">>> 正在进行最终测试集 (Test Set) 评估...")
+    print(">>> Final test set evaluation in progress...")
     best_ckpt = torch.load(os.path.join(args.save_dir, "best_model.pth"), map_location=device, weights_only=False)
     model.load_state_dict(best_ckpt['model_state_dict'])
     if args.eval_ema and ('ema_state_dict' in best_ckpt) and (best_ckpt['ema_state_dict'] is not None):
-        print(">>> 使用 EMA 权重进行最终测试评估")
+        print(">>> Final test evaluation using EMA weights")
         ema.shadow = {k: v.to(device) for k, v in best_ckpt['ema_state_dict'].items()}
         ema.apply_shadow(model)
     model.eval()
@@ -489,7 +489,7 @@ def train():
             dose = batch['dose'].to(device) if 'dose' in batch else None
             atac_feat = batch['atac_feat'].to(device) if 'atac_feat' in batch else None
             
-            # 药物特征处理 (测试集)
+            # Drug feature processing (test set)
             drug_feat = None
             if drug_embeddings is not None:
                 drug_feat = drug_embeddings[perturb]
