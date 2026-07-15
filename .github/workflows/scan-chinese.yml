@@ -1,29 +1,37 @@
-name: Scan Chinese text
+name: Apply English translation
 
 on:
-  push:
-    branches:
-      - agent/translate-chinese-to-english
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
-  scan:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+  translate:
+    if: github.head_ref == 'agent/apply-english-translation'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/translate-chinese-to-english
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
-
-      - name: Scan tracked text files
-        shell: python
+      - name: Translate Chinese text without changing code interfaces
+        run: python scripts/translate_chinese_to_english.py
+      - name: Validate Python syntax
+        run: python -m compileall -q .
+      - name: Verify no Chinese text remains
+        run: grep -Fxq 'TOTAL_MATCHING_LINES=0' CHINESE_SCAN.txt
+      - name: Remove temporary translation infrastructure
         run: |
-          import pathlib
-          import re
-          import subprocess
-
-          cjk = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
-          tracked = subprocess.check_output
+          rm -f CHINESE_SCAN.txt
+          rm -f scripts/translate_chinese_to_english.py
+          rm -f .github/workflows/scan-chinese.yml
+      - name: Commit translated repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Translate all Chinese repository content to English [skip ci]"
+          git push

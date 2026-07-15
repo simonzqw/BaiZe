@@ -1,0 +1,372 @@
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:1:# 单细胞扰动特异性建模框架 (scERso) 开发计划
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:3:我们将构建一个简单且高效的 MLP 判别器框架，用于学习“扰动-细胞背景”的匹配关系。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:5:## 1. 环境准备与项目初始化
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:6:- 创建基础目录结构：`models/`, `utils/`, `data/`。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:7:- 编写 `synthetic_data.py`：生成模拟的单细胞表达矩阵（HVGs）和扰动标注数据，确保在没有真实数据的情况下也能跑通流程。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:9:## 2. 核心模块开发
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:10:### **数据加载层 (Data Layer)**
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:11:- 实现 `PerturbationDataset`：封装 (RNA-seq, Perturbation, Label) 三元组。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:12:- 处理特征融合：将高维 RNA 特征与扰动向量（Embedding 或 One-hot）进行拼接。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:14:### **模型层 (Model Layer)**
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:15:- 设计 `SpecificityMLP`：
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:16:    - 输入层：接收融合后的特征。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:17:    - 隐藏层：多层全连接 + BatchNorm + Dropout（防止过拟合）。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:18:    - 输出层：Sigmoid 激活，输出匹配概率。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:20:### **训练与验证层 (Train Layer)**
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:21:- 编写 `train.py`：包含完整的训练循环、早停机制（Early Stopping）以及性能指标（AUC, Accuracy）监控。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:23:## 3. 验证与交付
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:24:- 运行合成数据测试，确保模型能够收敛并正确识别“特异性”模式。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:25:- 提供详细的文档说明，指导如何将 HVGs 替换为真实的大规模预训练 Embedding。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:27:## 关键技术点
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:28:- **特征降维**：初期使用 HVGs（如 2000 维）作为 RNA 输入。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:29:- **正负样本平衡**：在构造“不匹配”样本时，采用负采样策略。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:30:- **可扩展性**：模型接口兼容 scGPT 等预训练模型的 Embedding 输入。
+.trae/documents/单细胞扰动特异性建模框架搭建方案.md:32:请确认是否按照此计划开始执行？
+README.md:1:# scERso 条件扩散模型（Conditional Diffusion for Single-cell Response）
+README.md:3:本仓库当前**主线已切换为条件扩散模型**，不再推荐使用旧的 MLP/Transformer 训练路线（`train.py`）。
+README.md:5:当前建议统一使用：
+README.md:6:- 训练：`train_diffusion.py`
+README.md:7:- 评估：`evaluate_diffusion.py`
+README.md:8:- 推理/组合/插值：`predict_diffusion.py`
+README.md:9:- 可视化：`visualize_diffusion.py`
+README.md:13:## 1. 当前主线能力
+README.md:15:### 1.1 条件扩散主干
+README.md:16:- 背景-效应解耦：`z_bg`（background）与 `z_eff`（effect）分离编码。
+README.md:17:- 目标模式：`target_mode = target | delta`。
+README.md:18:- 采样与引导：支持 classifier-free guidance、DDIM 步数控制、EMA 权重评估。
+README.md:20:### 1.2 双任务模式（重点）
+README.md:21:通过 `--task_mode` 区分两类任务，避免“任务定义与数据不匹配”：
+README.md:24:   - 适用于 Adamson 等单基因扰动任务
+README.md:25:   - 条件字段：`perturb_gene_idx`、`is_control`
+README.md:28:   - 适用于 two-condition translation（如 day4 -> day6）
+README.md:29:   - 条件字段：`condition_id`、`source_flag`
+README.md:31:### 1.3 数据与 control/reference 机制
+README.md:32:- 支持 `split_strategy = random | perturbation | custom`
+README.md:33:- 在 perturbation zero-shot 设置下，val/test 复用 train control bank，避免无 control split 崩溃
+README.md:34:- 支持 `control_match_mode`、`control_prototype_mode`、`control_prototype_temp`
+README.md:38:## 2. 项目结构（与当前主线相关）
+README.md:40:- `train_diffusion.py`：条件扩散训练入口（主入口）
+README.md:41:- `evaluate_diffusion.py`：评估入口（single-cell + perturbation-level 指标）
+README.md:42:- `predict_diffusion.py`：单扰动/组合扰动预测与 latent 插值轨迹输出
+README.md:43:- `visualize_diffusion.py`：组合扰动分析图与诊断可视化
+README.md:44:- `models/scerso_diffusion.py`：条件扩散模型定义
+README.md:45:- `models/diffusion_core.py`：扩散过程实现
+README.md:46:- `utils/data_processor.py`：h5ad 读取、划分、control pool、条件字段构造
+README.md:47:- `docs/diffusion_methodology.md`：方法论说明
+README.md:49:> 旧路线文件（如 `train.py`, `evaluate_metrics.py`, `visualize.py`）保留仅供历史对照，不作为当前推荐路径。
+README.md:53:## 3. 环境与依赖
+README.md:55:建议：
+README.md:62:- rdkit（仅当使用 SMILES 药物特征）
+README.md:64:并建议设置：
+README.md:72:## 4. 训练（主入口）
+README.md:86:如果训练数据里有 `double_...`、`triple_...` 或 `GENE1+GENE2+GENE3` 这类组合扰动标签，可打开多基因标签解析：
+README.md:113:> 快速冒烟可用 `--preset smoke`。
+README.md:117:## 5. 评估
+README.md:128:可额外评估一个三基因组合 case（若 h5ad 里有对应组合标签，会同时输出该 case 的真实均值指标）：
+README.md:143:对 translation 数据可改为：
+README.md:151:## 6. 推理与可视化
+README.md:153:### 6.1 预测/组合/插值
+README.md:165:三基因扰动 case（在原来的双基因命令里追加第 3 个基因即可）：
+README.md:177:### 6.2 可视化
+README.md:188:三基因组合可视化：
+README.md:202:## 7. 常见问题
+README.md:204:### Q1: `adata.obs 缺少自定义划分列: split`
+README.md:205:你用了 `split_strategy=custom`，但数据里没有 `obs['split']`。可改成：
+README.md:211:或先在 h5ad 里准备 `split` 列。
+README.md:213:### Q2: 明明传了 `--split_strategy perturbation`，日志却显示 custom
+README.md:214:`--preset` 现在只会覆盖“未显式设置”的参数；显式传参会保留。若仍异常，请确认命令行没有重复传参。
+README.md:216:### Q3: val/test 报 control pool 为空
+README.md:217:在 perturbation zero-shot 下，val/test 复用 train control bank。若仍报错，通常是训练集本身没有 control 样本，需要先检查原始数据。
+docs/diffusion_methodology.md:1:# 当前扩散模型方法学（scERso diffusion）
+docs/diffusion_methodology.md:3:## 1) 任务与条件建模
+docs/diffusion_methodology.md:4:目标是学习条件分布：
+docs/diffusion_methodology.md:10:其中 \(\mathbf{x}_{\text{ctrl}}\) 为对照RNA表达，\(\mathbf{x}_{\text{pert}}\) 为扰动后表达。
+docs/diffusion_methodology.md:12:## 2) 语义潜变量与上下文
+docs/diffusion_methodology.md:13:模型先把多模态条件编码为语义潜变量 \(\mathbf{z}_{sem}\)：
+docs/diffusion_methodology.md:15:- RNA对照投影；
+docs/diffusion_methodology.md:16:- perturbation embedding（可按dose做缩放）；
+docs/diffusion_methodology.md:18:- dose投影；
+docs/diffusion_methodology.md:19:- 可选 ATAC / drug 特征投影；
+docs/diffusion_methodology.md:20:- 通过多头自注意力融合，再做残差MLP与LayerNorm得到 \(\mathbf{z}_{sem}\)。
+docs/diffusion_methodology.md:21:- 并行引入 joint semantic encoder（RNA/perturb/cell-line/dose 拼接后 MLP）并与 attention 路径做门控融合，提升单扰动语义表示稳定性。
+docs/diffusion_methodology.md:23:随后构造扩散条件向量：
+docs/diffusion_methodology.md:29:并支持条件dropout（训练时随机将 \(\mathbf{z}_{sem}\) 置零）用于 classifier-free guidance。
+docs/diffusion_methodology.md:31:## 3) 前向扩散（加噪）
+docs/diffusion_methodology.md:32:采用高斯扩散前向过程：
+docs/diffusion_methodology.md:38:实现为：
+docs/diffusion_methodology.md:44:噪声调度可选 linear 或 cosine（默认 cosine）。
+docs/diffusion_methodology.md:46:## 4) 反向去噪网络
+docs/diffusion_methodology.md:47:去噪器是 Squidiff 风格 MLP：
+docs/diffusion_methodology.md:49:- 输入 \(\mathbf{x}_t\) 与条件 \(\mathbf{c}\)；
+docs/diffusion_methodology.md:50:- 时间步 \(t\) 先做正弦位置编码并MLP；
+docs/diffusion_methodology.md:51:- 每个残差块中注入 time embedding 和 \(\mathbf{z}_{sem}\)；
+docs/diffusion_methodology.md:52:- 输出与输入同维度的表达向量。
+docs/diffusion_methodology.md:54:当前 objective 配置为 `pred_x0`，即网络直接预测 \(\hat{\mathbf{x}}_0\)。
+docs/diffusion_methodology.md:56:## 5) 训练目标
+docs/diffusion_methodology.md:57:每次随机采样时间步 \(t\)，最小化：
+docs/diffusion_methodology.md:63:代码中为按样本求 mean(dim=1) 后再 batch 平均；可选样本权重（配合时间步重采样器）。
+docs/diffusion_methodology.md:65:## 6) 采样与推理
+docs/diffusion_methodology.md:66:### DDPM采样
+docs/diffusion_methodology.md:67:按 \(t=T-1\to0\) 迭代：
+docs/diffusion_methodology.md:69:1. 用模型得到 \(\hat{\mathbf{x}}_0\)（或先预测噪声再换算）；
+docs/diffusion_methodology.md:70:2. 通过后验均值方差
+docs/diffusion_methodology.md:72:采样 \(\mathbf{x}_{t-1}\)。
+docs/diffusion_methodology.md:74:### DDIM快速采样
+docs/diffusion_methodology.md:75:若 `sample_steps < timesteps`，走DDIM子序列更新，支持 \(\eta\) 控制随机性。
+docs/diffusion_methodology.md:78:支持在两个语义 latent 之间做线性插值轨迹：
+docs/diffusion_methodology.md:82:可用于剂量/状态连续过渡分析（`predict_diffusion.py --interpolate_to --interp_steps`）。
+docs/diffusion_methodology.md:85:同时计算条件/无条件预测并线性组合：
+docs/diffusion_methodology.md:91:其中 \(s=\) `guidance_scale`。
+docs/diffusion_methodology.md:93:## 7) 数学意义（直观解释）
+docs/diffusion_methodology.md:94:1. **把高维基因表达生成转化为“逐步细化”问题**：
+docs/diffusion_methodology.md:95:   从各向同性高斯噪声出发，逐步收缩到符合条件分布的表达向量。
+docs/diffusion_methodology.md:96:2. **条件潜变量 \(\mathbf{z}_{sem}\) 是“扰动语义坐标”**：
+docs/diffusion_methodology.md:97:   把 perturb/cell-line/dose/ATAC/drug 统一到同一潜空间，等价于给逆扩散轨迹施加“场”。
+docs/diffusion_methodology.md:98:3. **`pred_x0` 目标偏向直接回归生物信号主体**：
+docs/diffusion_methodology.md:99:   相比纯噪声预测，直接监督 \(\mathbf{x}_0\) 对表达幅值的拟合更直接（但对稳定性和校准依赖调参与归一化）。
+docs/diffusion_methodology.md:100:4. **CFG 对应条件似然梯度放大**：
+docs/diffusion_methodology.md:101:   在采样时增强条件项贡献，提高条件一致性（通常会牺牲一些多样性）。
+docs/diffusion_methodology.md:102:5. **时间步重采样 = 重要性采样思想**：
+docs/diffusion_methodology.md:103:   loss-second-moment 更关注高损失时间步，近似减少梯度方差并提升样本效率。
+docs/diffusion_methodology.md:105:## 8) 与组合扰动的关系
+docs/diffusion_methodology.md:106:该实现支持先编码单扰动 latent，再做组合后采样：
+docs/diffusion_methodology.md:108:- `sum/mean`：线性叠加（可解释、稳定）；
+docs/diffusion_methodology.md:109:- `adaptive`：在加权叠加基础上，引入 pairwise 非线性交互项
+docs/diffusion_methodology.md:110:  \\(\phi([z_i,z_j,z_i\\odot z_j,|z_i-z_j|])\\) 与门控融合：
+docs/diffusion_methodology.md:114:  其中 \\(g=\\sigma(\\psi([z_{lin},\\bar z]))\\)。
+docs/diffusion_methodology.md:116:这使组合扰动可显式表达一部分协同/拮抗的非线性效应，同时保持单扰动路径不变。
+evaluate_diffusion.py:223:            raise ValueError("没有可用的 cell-line control baseline。")
+evaluate_diffusion.py:225:        print(f">>> 未传 --cell_line，默认使用: {processor.cell_line_categories[first_id]} (id={first_id})")
+evaluate_diffusion.py:234:        raise ValueError(f"未找到 cell line: {cell_line_arg}")
+evaluate_diffusion.py:260:        raise ValueError("--combo_genes 至少需要两个基因；三基因 case 例如: --combo_genes FOXA2 GATA6 SOX17")
+evaluate_diffusion.py:271:            raise ValueError(f"组合扰动基因不在 perturbation vocab 中: {gene}")
+evaluate_diffusion.py:358:    # 尽量从 checkpoint 恢复语义 perturb embedding 模式
+evaluate_diffusion.py:402:        print(f">>> 提示: checkpoint 缺少以下参数（已用随机初始化兼容）: {missing[:8]}{' ...' if len(missing) > 8 else ''}")
+evaluate_diffusion.py:404:        print(f">>> 提示: checkpoint 存在未使用参数: {unexpected[:8]}{' ...' if len(unexpected) > 8 else ''}")
+evaluate_diffusion.py:564:    print(f">>> 指标已保存到: {args.output_json}")
+evaluate_metrics.py:260:    # 兼容旧 checkpoint：存在 perturb_encoder 参数但没有 perturb_feature_bank
+evaluate_metrics.py:261:    # 这时用 perturb_embedding.weight 作为 feature_bank 构建语义分支结构，确保能完整加载权重。
+models/mlp.py:6:    单细胞扰动特异性判别模型 (MLP) - 增强版
+models/mlp.py:8:    支持:
+models/mlp.py:9:    1. RNA-seq 特征 (HVGs)
+models/mlp.py:10:    2. 扰动基因 Embedding
+models/mlp.py:11:    3. 细胞系/组织上下文 Embedding (实现老师要求的特异性建模)
+models/mlp.py:18:        # 1. 嵌入层
+models/mlp.py:22:        # 2. 特征融合层
+models/mlp.py:23:        # 输入维度 = RNA维度 + 扰动维度 + 细胞系维度
+models/mlp.py:35:        # 3. 输出层 (二分类: 匹配/响应 vs 不匹配/正常)
+models/mlp.py:45:            perturb: [batch_size] 扰动 ID
+models/mlp.py:46:            cell_line: [batch_size] 细胞系 ID
+models/mlp.py:51:        # 拼接所有特征
+models/reasoning_mlp.py:212:        state = "冻结" if freeze else "解冻"
+models/reasoning_mlp.py:213:        print(f">>> 扰动 Embedding 层已 {state}")
+models/scerso_diffusion.py:189:            raise ValueError("target_mode 必须是 'target' 或 'delta'")
+models/scerso_diffusion.py:599:            raise ValueError("latents 不能为空。")
+models/scerso_diffusion.py:603:            raise ValueError("weights 长度必须和 latents 一致。")
+models/scerso_diffusion.py:633:            raise ValueError(f"未知组合模式: {mode}")
+models/scerso_diffusion.py:643:            raise ValueError("steps 必须 >= 2。")
+predict_diffusion.py:65:        raise ValueError(f"未找到 cell line: {cell_line_arg}")
+predict_diffusion.py:85:    raise ValueError("未找到可用的非 control 扰动基因。")
+predict_diffusion.py:136:        print(f">>> 提示: checkpoint 缺少以下参数（已用随机初始化兼容）: {missing[:8]}{' ...' if len(missing) > 8 else ''}")
+predict_diffusion.py:138:        print(f">>> 提示: checkpoint 存在未使用参数: {unexpected[:8]}{' ...' if len(unexpected) > 8 else ''}")
+predict_diffusion.py:152:        print(">>> 提示: 组合扰动当前默认复用同一 cell-line baseline ATAC；若组合引发显著染色质变化，建议外部构建组合特异 ATAC 条件。")
+predict_diffusion.py:160:            print(f">>> 提示: 扰动 {gene} 不存在，自动替换为 {resolved_gene}")
+predict_diffusion.py:208:            print(f">>> 已匹配真实均值样本: gene={resolved_genes[0]} | n={int(np.sum((processor.adata.obs['perturbation'].astype(str)==resolved_genes[0]).values))}")
+predict_diffusion.py:238:            print(f">>> 提示: interpolate_to={args.interpolate_to} 不存在，自动替换为 {interp_gene}")
+predict_diffusion.py:266:        print(f">>> 插值轨迹保存: {traj_path}")
+predict_diffusion.py:303:    print(f">>> 预测 CSV: {csv_path}")
+predict_diffusion.py:304:    print(f">>> 可视化图: {fig_path}")
+predict_diffusion.py:305:    print(f">>> latent 保存: {latent_path}")
+train.py:20:        self.alpha = alpha # GlobalMSE 权重
+train.py:21:        self.gamma = gamma # DeltaMSE 放大系数
+train.py:27:        # 1. DeltaMSE (带加权)
+train.py:28:        # 根据真实变化量的绝对值进行加权，强迫模型拟合剧烈变化的基因
+train.py:30:        weights = weights / weights.mean() # 归一化权重
+train.py:33:        # 2. GlobalMSE (基础保底)
+train.py:36:        # 3. Control 正则化 (如果输入是 control 样本，则 delta 必须为 0)
+train.py:37:        # 优先只在 control 样本上施加约束，避免过度抑制真实扰动信号
+train.py:54:        # 注意：现在监控的是 Top50 Pearson，越高越好
+train.py:136:    # 模型架构参数
+train.py:160:    返回更完整的指标:
+train.py:161:    - 全谱: all_mse / all_pearson
+train.py:164:    - all_de: 对所有非dropout(真实delta!=0)基因统计 mse / pearson
+train.py:210:    # 聚合
+train.py:218:    print(f">>> scERso V7 启动 | 任务: 生成式扰动预测 | 策略: {args.split_strategy}")
+train.py:220:    # 1. 数据准备
+train.py:230:            "当前是 unseen perturbation 划分，必须提供 side information（如 --pretrained_emb 或 SMILES 药物特征），"
+train.py:231:            "否则 perturbation 只能依赖 ID embedding，泛化会明显受限。"
+train.py:244:    # 2. 加载预训练向量
+train.py:255:    # 3. 初始化模型
+train.py:261:        drug_dim=args.drug_dim, # 新增药物维度参数
+train.py:272:    # 损失函数: 加权 MSE (根据 Delta 绝对值加权，抑制基线红利)
+train.py:275:    # 参数分组优化
+train.py:297:    # 4. 训练循环
+train.py:299:    best_score = -float('inf') # 监控 -Top20 MSE，越大越好（等价于 Top20 MSE 越小越好）
+train.py:305:        print(f">>> 检测到断点续训: {args.resume_path}")
+train.py:319:        print(f">>> 从 epoch {start_epoch} 继续训练")
+train.py:331:        # 冻结策略
+train.py:335:            if is_frozen: print(f">>> Epoch {epoch+1}: 扰动 Embedding 层已 冻结")
+train.py:336:            else: print(f">>> Epoch {epoch+1}: 扰动 Embedding 层已 解冻")
+train.py:352:            # 药物特征处理 (如果有)
+train.py:355:                # 根据 perturb index 获取对应的 drug feature
+train.py:358:            # 传递 drug_feat 和 dose 到 forward
+train.py:364:                # 使用加权损失
+train.py:388:        # 验证集评估
+train.py:402:                # 药物特征处理 (验证集)
+train.py:412:                # 计算多维指标
+train.py:418:        # 聚合所有 batch 的指标
+train.py:431:        # 核心：以 Top20 MSE 作为保存和早停依据（越小越好）
+train.py:432:        current_score = -final_m.get('top20_mse', float('inf'))  # 越小越好 -> 取负号后越大越好
+train.py:444:            print(f"*** 发现更优模型 (Val Top20 DE MSE: {-best_score:.6f}), 已保存")
+train.py:446:        # 每个 epoch 保存 checkpoint，并仅保留最近 N 个
+train.py:468:            print(f"!!! 早停触发 (核心基因拟合已达瓶颈)")
+train.py:471:    # 5. 最终测试集评估 (使用保存的最佳权重)
+train.py:473:    print(">>> 正在进行最终测试集 (Test Set) 评估...")
+train.py:477:        print(">>> 使用 EMA 权重进行最终测试评估")
+train.py:492:            # 药物特征处理 (测试集)
+train.py:502:    print(f"!!! 最终评估结果 (Test Set) !!!")
+train_diffusion.py:334:            f"你应该使用按 adata.var_names 对齐的 2000HVG embedding。"
+utils/data_processor.py:73:            print(">>> 检测到 SCI-Plex 格式，正在适配列名...")
+utils/data_processor.py:81:            print(">>> 检测到 Adamson 格式，正在适配列名...")
+utils/data_processor.py:92:            print(f">>> Adamson 格式清洗示例: {self.adata.obs['perturbation'].unique()[:5]}")
+utils/data_processor.py:101:            print(">>> perturb_parse_mode=single_gene_suffix_clean: 仅清理后缀噪声 (如 +ctrl / +control)")
+utils/data_processor.py:106:            print(">>> perturb_parse_mode=double_gene_parse: 解析双扰动标签，避免塌缩成 'double'")
+utils/data_processor.py:109:            print(">>> perturb_parse_mode=multi_gene_parse: 解析双/三/多基因组合扰动标签")
+utils/data_processor.py:112:            print(">>> perturb_parse_mode=raw: 保留原始 perturbation 字符串，不做下划线截断清洗。")
+utils/data_processor.py:142:        print(f">>> single-gene perturbation vocab size: {len(self.perturb_gene_vocab)} (含 PAD)")
+utils/data_processor.py:158:        print(">>> 已写入 adata.obs: perturb_gene_idx / is_control")
+utils/data_processor.py:205:        print(">>> 检测到 SMILES 信息，正在提取药物化学特征 (Morgan Fingerprint)...")
+utils/data_processor.py:217:                print(f"!!! 警告: 无法解析 SMILES: {name}")
+utils/data_processor.py:226:        print(f">>> 药物特征提取完成，维度: {self.drug_embeddings.shape}")
+utils/data_processor.py:233:        print(">>> 检测到剂量信息，正在处理 Dose 特征...")
+utils/data_processor.py:255:                print(f">>> 检测到 ATAC 特征: obsm['{key}']")
+utils/data_processor.py:259:                print(f">>> ATAC 维度: {self.atac_features.shape}")
+utils/data_processor.py:264:                raise FileNotFoundError(f"ATAC bank 不存在: {atac_bank_path}")
+utils/data_processor.py:266:            print(f">>> 从 atac_bank 加载 ATAC 特征: {atac_bank_path}")
+utils/data_processor.py:273:                    raise ValueError("atac_bank['genes'] 与当前 h5ad.var_names 不一致，请先按同一基因顺序构建 atac_bank。")
+utils/data_processor.py:277:                raise ValueError("atac_bank 中未找到背景向量键（除 'genes' 外）。")
+utils/data_processor.py:281:                print(f">>> 使用 obs['{background_key}'] 映射 ATAC 背景。")
+utils/data_processor.py:284:                print(f">>> 未找到 obs['{background_key}']，回退使用 obs['{self.cell_line_col}']。")
+utils/data_processor.py:296:                print(f"!!! 警告: 以下背景在 atac_bank 中缺失，已用全0向量替代: {sorted(list(missing_bg))[:10]}")
+utils/data_processor.py:300:            print(f">>> 从 atac_bank 构建样本级 ATAC 完成，维度: {self.atac_features.shape}")
+utils/data_processor.py:327:        print(f">>> 正在加载数据: {self.h5ad_path}")
+utils/data_processor.py:339:        print(">>> 正在计算 control context 基线表达谱...")
+utils/data_processor.py:355:                print(f"!!! 警告: 细胞系 {cl_name} 缺失控制组数据")
+utils/data_processor.py:358:        print(f">>> 数据加载完成: {self.adata.n_obs} 细胞, {self.adata.n_vars} 基因")
+utils/data_processor.py:408:            raise ValueError("perturb_gene vocab 尚未初始化，请先调用 load_data()。")
+utils/data_processor.py:467:                raise ValueError(f"adata.obs 缺少自定义划分列: {self.split_col}")
+utils/data_processor.py:472:            print(f">>> 采用自定义划分策略: obs['{self.split_col}']")
+utils/data_processor.py:473:            print(f">>> 划分结果: train={len(train_idx)} val={len(val_idx)} test={len(test_idx)}")
+utils/data_processor.py:475:                raise ValueError(f"自定义划分列 {self.split_col} 中 train/val/test 至少有一个为空。")
+utils/data_processor.py:477:            print(">>> 采用按扰动基因划分策略 (Zero-shot 分层模式)...")
+utils/data_processor.py:499:            print(f">>> 划分结果: 训练集 {len(train_p)} 基因(+Control), 验证集 {len(val_p)} 基因, 测试集 {len(test_p)} 基因")
+utils/data_processor.py:501:            print(">>> 采用随机划分策略...")
+utils/data_processor.py:524:        # 对于 perturbation zero-shot，val/test 通常没有 control。
+utils/data_processor.py:525:        # 因此统一复用 train control 作为 reference control bank。
+utils/data_processor.py:530:            raise ValueError("未找到 control 样本，无法构建 control pool。")
+utils/data_processor.py:660:                        raise ValueError("当前 split 内不存在可用 control 样本（global 模式）。")
+utils/data_processor.py:670:                    raise ValueError("当前 split 内不存在可用 control 样本，无法为非-control 样本匹配输入 control。")
+utils/data_processor.py:703:                    raise ValueError("未找到可用于构造 control prototype 的候选 control。")
+utils/dataset.py:5:    单细胞扰动数据集
+utils/dataset.py:10:            rna_tensors (torch.Tensor): 表达矩阵
+utils/dataset.py:11:            perturb_tensors (torch.Tensor): 扰动 ID
+utils/dataset.py:12:            label_tensors (torch.Tensor): 标签 (1=匹配, 0=不匹配)
+utils/dataset.py:24:            'perturb': self.perturb[idx].long(), # 确保是长整型用于 Embedding
+utils/emb_loader.py:8:    负责加载外部预训练基因向量并与当前数据的扰动 ID 对齐
+utils/emb_loader.py:16:            print(f"!!! 警告: 预训练文件 {self.embedding_path} 不存在。将使用随机初始化。")
+utils/emb_loader.py:19:        print(f">>> 正在加载预训练向量: {self.embedding_path}")
+utils/emb_loader.py:21:        # 假设文件是 CSV (gene_name, dim1, dim2...)，无 header 或 index 为基因名
+utils/emb_loader.py:22:        # 根据实际下载格式可能需要微调 (例如 gene2vec 通常是 txt 或 bin)
+utils/emb_loader.py:24:            # Gene2Vec .txt 格式通常是: 第一行是 (n_genes, dim)，或者直接每行 gene val1 val2...
+utils/emb_loader.py:25:            # 我们直接使用 pd.read_csv 并根据内容自动判断
+utils/emb_loader.py:28:            # 如果第一行是元数据 (例如 24447 200)，我们需要过滤掉
+utils/emb_loader.py:30:                print(">>> 检测到文件首行包含元数据，已跳过。")
+utils/emb_loader.py:33:            print(f">>> 已读取 {len(df)} 个基因的预训练向量，维度: {df.shape[1]}")
+utils/emb_loader.py:35:            # 构建权重矩阵
+utils/emb_loader.py:42:            # 遍历我们数据中的所有扰动 ID
+utils/emb_loader.py:45:                    # Control 可以初始化为全 0 或特定向量
+utils/emb_loader.py:49:                # 尝试匹配 (处理大小写不一致等问题)
+utils/emb_loader.py:59:            print(f">>> 预训练向量匹配成功率: {hit_count}/{n_perturbations} ({hit_count/n_perturbations:.1%})")
+utils/emb_loader.py:63:            print(f"!!! 加载预训练向量失败: {e}")
+utils/synthetic_data.py:7:    生成模拟的单细胞扰动数据。
+utils/synthetic_data.py:9:    逻辑：
+utils/synthetic_data.py:10:    1. 为每个细胞随机分配一个 Cell Type。
+utils/synthetic_data.py:11:    2. 生成基础表达矩阵 (HVGs)。
+utils/synthetic_data.py:12:    3. 生成正样本 (Label=1): 扰动与细胞类型匹配的真实生物学反应。
+utils/synthetic_data.py:13:    4. 生成负样本 (Label=0): 随机替换扰动，模拟不匹配的情况。
+utils/synthetic_data.py:17:    # 1. 随机分配细胞类型
+utils/synthetic_data.py:20:    # 2. 生成基础表达矩阵 (模拟 HVGs)
+utils/synthetic_data.py:21:    # 为不同 Cell Type 生成不同的基础表达分布
+utils/synthetic_data.py:26:            # 每个细胞类型有一个独特的“特征均值向量”
+utils/synthetic_data.py:30:    # 3. 定义扰动
+utils/synthetic_data.py:31:    # 扰动 ID 0-9
+utils/synthetic_data.py:34:    # 4. 生成标签 (Label)
+utils/synthetic_data.py:35:    # 模拟某种规律：只有当 (perturbation_id + cell_type) 是偶数时，才产生反应 (Label=1)
+utils/synthetic_data.py:36:    # 这是一个简单的非线性规律，供 MLP 学习
+utils/synthetic_data.py:39:    # 为了增加难度，给标签加一点噪音
+utils/synthetic_data.py:41:    labels = np.abs(labels - noise) # 翻转 5% 的标签
+utils/synthetic_data.py:43:    # 5. 转换为 DataFrame 或 Tensor 格式
+utils/synthetic_data.py:54:    """将数据划分为训练集和验证集，并转换为 PyTorch Tensor"""
+utils/synthetic_data.py:59:    # 划分数据集 (手动实现)
+visualize.py:32:    print(f">>> 当前请求的可视化基因: {args.heatmap_gene}")
+visualize.py:34:    # 1. 加载 Checkpoint
+visualize.py:35:    print(f">>> 正在加载模型: {args.model_path}")
+visualize.py:40:        print(">>> 检测到 EMA 权重，优先使用 EMA 权重进行可视化评估")
+visualize.py:43:    # 2. 加载数据
+visualize.py:44:    print(f">>> 正在加载数据: {args.data_path}")
+visualize.py:60:    # 3. 还原模型 (V9 架构)
+visualize.py:96:    # 4. 执行推理并按扰动分组
+visualize.py:99:    print(">>> 正在进行测试集推理评估...")
+visualize.py:129:    # 5. 计算指标与准备绘图数据
+visualize.py:130:    print(">>> 正在计算多维度评估指标...")
+visualize.py:135:    # 用户指定的 ROC 基因列表
+visualize.py:157:        # 计算 NormMSE (Normalized Mean Squared Error)
+visualize.py:166:        # 柱状图数据准备 (针对指定的基因)
+visualize.py:168:            # 找到真实变化最大的 Top 20
+visualize.py:172:            # 计算 Top 20 重叠率
+visualize.py:176:            # 构建“长表”数据 (Tidy Data)
+visualize.py:189:    # --- 新增: 打印详细的测试指标表格 ---
+visualize.py:191:    print(f"正在为 {len(df_pert)} 个测试扰动计算 AUC...")
+visualize.py:192:    print("--- AUC 计算完成 ---")
+visualize.py:194:    # 格式化输出表格 (类似于用户提供的格式)
+visualize.py:204:    print(f"{'平均值':<15} {df_pert['norm_mse'].mean():.6f}   {df_pert['pearson'].mean():.6f}   {df_pert['auc'].mean():.6f}")
+visualize.py:207:    # 保存测试集基因列表
+visualize.py:212:    print(f">>> 已将 {len(test_genes_list)} 个测试集基因保存至: {test_genes_path}")
+visualize.py:214:    # 如果没找到指定的基因，自动选择测试集中 AUC 最高的基因作为备份
+visualize.py:216:        print(f"!!! 警告: 基因 {args.heatmap_gene} 不在测试集中。")
+visualize.py:219:        print(f">>> 自动选择测试集表现最佳基因进行展示: {best_gene_name}")
+visualize.py:238:    # 6. 绘图 (2x2 布局)
+visualize.py:242:    # (1) AUC 分布直方图
+visualize.py:249:    # (2) 多线 ROC 曲线 (用户指定基因)
+visualize.py:272:    # (3) Top-20 DE 柱状图 (改为热图)
+visualize.py:277:        # 转换数据格式为 Heatmap 所需的 Matrix
+visualize.py:278:        # df_p 结构: Gene | Expression | Group
+visualize.py:280:        # 1. 提取 Control 基线
+visualize.py:281:        # 注意: set_index 后可能有重复的 Gene (因为 df_p 是 long format)，需要先 filter
+visualize.py:286:        # 2. 计算 Delta (Real - Ctrl, Pred - Ctrl) 并取绝对值
+visualize.py:287:        # 确保索引对齐
+visualize.py:292:        # 3. 合并为 DataFrame
+visualize.py:295:        # 4. 排序：按 Real_Delta 降序排列
+visualize.py:298:        # 5. 绘制热图 (使用 YlGnBu 颜色，类似提供的示例)
+visualize.py:303:        axes[1, 0].set_xlabel('') # 移除 X 轴标签
+visualize.py:305:    # (4) 性能汇总统计
+visualize.py:308:    # --- 新增: 绘制第二个基因的柱状图 (替代纯文本区域的一部分) ---
+visualize.py:309:    # 我们在 axes[1, 1] 上方绘制柱状图，下方放统计文本
+visualize.py:311:    # 分割 axes[1, 1] 区域
+visualize.py:315:    # 准备第二个基因的数据 (硬编码为 AARS，或者如果 args.heatmap_gene 不是 AARS 则展示 AARS)
+visualize.py:318:        # 如果用户已经选了 AARS，那我们选个别的，比如 AUC 最高的
+visualize.py:325:    # 获取第二个基因的数据
+visualize.py:326:    # 注意：需要检查 second_gene 是否在测试集中
+visualize.py:329:        if second_gene in p_name: # 模糊匹配
+visualize.py:368:    # 将文本放在 axes[1, 1] 的底部
+visualize.py:373:    print(f">>> 最终专业评估报告已生成: {args.save_path}")
+visualize_diffusion.py:50:        raise ValueError(f"未找到 cell line: {cell_line_arg}")
+visualize_diffusion.py:70:    raise ValueError("未找到可用的非 control 扰动基因。")
+visualize_diffusion.py:98:        print(f">>> 提示: checkpoint 缺少以下参数（已用随机初始化兼容）: {missing[:8]}{' ...' if len(missing) > 8 else ''}")
+visualize_diffusion.py:100:        print(f">>> 提示: checkpoint 存在未使用参数: {unexpected[:8]}{' ...' if len(unexpected) > 8 else ''}")
+visualize_diffusion.py:154:        print(">>> 提示: 可视化组合扰动时默认复用同一 cell-line baseline ATAC，未显式建模组合特异 ATAC 变化。")
+visualize_diffusion.py:163:            print(f">>> 提示: 扰动 {gene} 不存在，自动替换为 {resolved_gene}")
+visualize_diffusion.py:226:            print(f">>> 已匹配真实均值样本: gene={resolved_genes[0]}")
+visualize_diffusion.py:319:    print(f">>> 图已保存: {args.save_path}")
+visualize_diffusion.py:320:    print(f">>> 基因报告: {report_csv}")
+TOTAL_MATCHING_LINES=371
