@@ -1,24 +1,20 @@
 name: Scan Chinese text
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches:
-      - agent/translate-chinese-to-english
+    branches: [agent/translate-chinese-to-english]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   scan:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: agent/translate-chinese-to-english
-          fetch-depth: 0
-
-      - name: Scan tracked text files
+      - name: Scan tracked UTF-8 files for CJK text
         shell: python
         run: |
           import pathlib
@@ -26,4 +22,28 @@ jobs:
           import subprocess
 
           cjk = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
-          tracked = subprocess.check_output
+          tracked = subprocess.check_output(
+              ["git", "ls-files", "-z"]
+          ).decode("utf-8").split("\0")
+
+          matches = []
+          for name in tracked:
+              if not name or name == ".github/workflows/scan-chinese.yml":
+                  continue
+              path = pathlib.Path(name)
+              try:
+                  raw = path.read_bytes()
+                  if b"\x00" in raw:
+                      continue
+                  text = raw.decode("utf-8")
+              except (OSError, UnicodeDecodeError):
+                  continue
+              for line_no, line in enumerate(text.splitlines(), 1):
+                  if cjk.search(line):
+                      matches.append(f"{name}:{line_no}:{line}")
+
+          print("=== CHINESE_SCAN_BEGIN ===")
+          for item in matches:
+              print(item)
+          print("=== CHINESE_SCAN_END ===")
+          print(f"TOTAL_MATCHING_LINES={len(matches)}")
