@@ -160,7 +160,7 @@ def visualize():
     for gene in args.perturb_genes:
         resolved_gene, auto_picked = resolve_or_autopick_gene(processor, gene, cell_line_id)
         if auto_picked:
-            print(f">>> 提示: Perturbation {gene} was not found and was automatically replaced with {resolved_gene}")
+            print(f">>> Note: Perturbation {gene} was not found and was automatically replaced with {resolved_gene}")
         resolved_genes.append(resolved_gene)
         pid = processor.perturb_map[resolved_gene]
         perturb_ids.append(pid)
@@ -316,8 +316,8 @@ def visualize():
     plt.tight_layout()
     plt.savefig(args.save_path, dpi=260)
     plt.close(fig)
-    print(f">>> 图saved: {args.save_path}")
-    print(f">>> genes报告: {report_csv}")
+    print(f">>> Figure saved to: {args.save_path}")
+    print(f">>> Gene report: {report_csv}")
 
 
 if __name__ == "__main__":

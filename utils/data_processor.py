@@ -281,7 +281,7 @@ class DataProcessor:
                 print(f">>> Using obs['{background_key}'] to map ATAC backgrounds.")
             else:
                 bg_values = self.adata.obs[self.cell_line_col].astype(str).values
-                print(f">>> obs field not found['{background_key}'],回退Using obs['{self.cell_line_col}'].")
+                print(f">>> obs field not found['{background_key}'], falling back to obs['{self.cell_line_col}'].")
 
             sample_vec = next(iter(bank_map.values()))
             atac_arr = np.zeros((self.adata.n_obs, sample_vec.shape[0]), dtype=np.float32)
@@ -293,7 +293,7 @@ class DataProcessor:
                     missing_bg.add(bg)
 
             if len(missing_bg) > 0:
-                print(f"!!! 警告: The following backgrounds are missing from atac_bank and were replaced with all-zero vectors: {sorted(list(missing_bg))[:10]}")
+                print(f"!!! Warning: The following backgrounds are missing from atac_bank and were replaced with all-zero vectors: {sorted(list(missing_bg))[:10]}")
 
             self.atac_features = torch.tensor(atac_arr, dtype=torch.float32)
             self.atac_dim = int(self.atac_features.shape[1])
@@ -352,7 +352,7 @@ class DataProcessor:
                 avg_expr = np.asarray(avg_expr).flatten()
                 self.cell_line_baselines[cl_id] = torch.tensor(avg_expr, dtype=torch.float32)
             else:
-                print(f"!!! 警告: Cell line {cl_name} has no control data")
+                print(f"!!! Warning: Cell line {cl_name} has no control data")
 
         self.gene_to_idx = {gene: i for i, gene in enumerate(self.adata.var_names)}
         print(f">>> Data loading complete: {self.adata.n_obs} cells, {self.adata.n_vars} genes")
@@ -472,7 +472,7 @@ class DataProcessor:
             print(f">>> Using the custom split strategy: obs['{self.split_col}']")
             print(f">>> Split sizes: train={len(train_idx)} val={len(val_idx)} test={len(test_idx)}")
             if len(train_idx) == 0 or len(val_idx) == 0 or len(test_idx) == 0:
-                raise ValueError(f"自定义划分列 {self.split_col} contains an empty train, validation, or test partition.")
+                raise ValueError(f"Custom split column {self.split_col} contains an empty train, validation, or test partition.")
         elif self.split_strategy == 'perturbation':
             print(">>> Adopt the strategy of dividing by perturbed genes (Zero-shot hierarchical mode)...")
             real_perts = [p for p in self.perturb_categories if p != 'control']

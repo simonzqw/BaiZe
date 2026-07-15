@@ -29,7 +29,7 @@ def get_args():
 def visualize():
     args = get_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f">>> 当前请求的可视化genes: {args.heatmap_gene}")
+    print(f">>> Requested visualization gene: {args.heatmap_gene}")
     
     # 1. Load Checkpoint
     print(f">>> Loading model: {args.model_path}")
@@ -188,7 +188,7 @@ def visualize():
 
     # --- New: Print detailed test indicator table ---
     print("\n" + "="*50)
-    print(f"Computing AUC for {len(df_pert)} 个测试Perturbation计算 AUC...")
+    print(f"Computing AUC for {len(df_pert)}  test perturbations...")
     print("---AUC calculation completed ---")
     
     # Format the output table (similar to the user-supplied format)
@@ -209,14 +209,14 @@ def visualize():
     test_genes_path = os.path.join(os.path.dirname(args.save_path) or ".", "test_genes_list.txt")
     with open(test_genes_path, "w") as f:
         f.write("\n".join(test_genes_list))
-    print(f">>> Saved {len(test_genes_list)} 个test setgenes保存至: {test_genes_path}")
+    print(f">>> Saved {len(test_genes_list)}  test-set genes to: {test_genes_path}")
 
     # If the specified gene is not found, the gene with the highest AUC in the test set is automatically selected as a backup.
     if bar_plot_data is None:
-        print(f"!!! 警告: genes {args.heatmap_gene} 不在test set中.")
+        print(f"!!! Warning: Gene {args.heatmap_gene} is not in the test set.")
         best_gene_row = df_pert.sort_values('auc', ascending=False).iloc[0]
         best_gene_name = best_gene_row['perturb']
-        print(f">>> 自动选择test set表现最佳genes进行展示: {best_gene_name}")
+        print(f">>> Automatically selected the best-performing test gene for display: {best_gene_name}")
         
         data = results_by_pert[best_gene_name]
         avg_p, avg_t, avg_c = np.mean(data['p'], axis=0), np.mean(data['t'], axis=0), np.mean(data['c'], axis=0)

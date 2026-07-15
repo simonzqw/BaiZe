@@ -13,10 +13,10 @@ Responsible for loading external pre-trained gene vectors and aligning them with
         
     def load_weights(self, default_dim=200):
         if not os.path.exists(self.embedding_path):
-            print(f"!!! 警告: Pretrained file {self.embedding_path} does not exist. Random initialization will be used.")
+            print(f"!!! Warning: Pretrained file {self.embedding_path} does not exist. Random initialization will be used.")
             return None
         
-        print(f">>> 正在Load pretrained vectors: {self.embedding_path}")
+        print(f">>> Loading pretrained vectors: {self.embedding_path}")
         
         # Assume the file is CSV (gene_name, dim1, dim2...), no header or index is the gene name
         # Fine-tuning may be required depending on the actual download format (for example, gene2vec is usually txt or bin)
@@ -30,7 +30,7 @@ Responsible for loading external pre-trained gene vectors and aligning them with
                 print(">>> It was detected that the first line of the file contains metadata and has been skipped.")
                 df = df.iloc[1:]
                 
-            print(f">>> Loaded {len(df)} 个genes的预训练向量,维度: {df.shape[1]}")
+            print(f">>> Loaded {len(df)}  pretrained gene vectors; dimension: {df.shape[1]}")
             
             # Build weight matrix
             n_perturbations = len(self.perturb_map)
@@ -60,5 +60,5 @@ Responsible for loading external pre-trained gene vectors and aligning them with
             return torch.FloatTensor(weights)
             
         except Exception as e:
-            print(f"!!! Load pretrained vectors失败: {e}")
+            print(f"!!! Failed to load pretrained vectors: {e}")
             return None

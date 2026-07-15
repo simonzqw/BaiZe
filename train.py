@@ -215,7 +215,7 @@ Return a more complete metric:
 def train():
     args = get_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f">>> scERso V7 启动 | 任务: 生成式Perturbation预测 | 策略: {args.split_strategy}")
+    print(f">>> scERso V7 started | task: generative perturbation prediction | strategy: {args.split_strategy}")
 
     # 1. Data preparation
     processor = DataProcessor(

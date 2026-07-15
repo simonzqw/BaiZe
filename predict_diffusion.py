@@ -157,7 +157,7 @@ def main():
     for gene in args.perturb_genes:
         resolved_gene, auto_picked = resolve_or_autopick_gene(processor, gene, cell_line_id)
         if auto_picked:
-            print(f">>> 提示: Perturbation {gene} was not found and was automatically replaced with {resolved_gene}")
+            print(f">>> Note: Perturbation {gene} was not found and was automatically replaced with {resolved_gene}")
         resolved_genes.append(resolved_gene)
         pid = processor.perturb_map[resolved_gene]
         perturb_ids.append(pid)
@@ -235,7 +235,7 @@ def main():
     if args.interpolate_to is not None:
         interp_gene, interp_auto = resolve_or_autopick_gene(processor, args.interpolate_to, cell_line_id)
         if interp_auto:
-            print(f">>> 提示: interpolate_to={args.interpolate_to} was not found and was automatically replaced with {interp_gene}")
+            print(f">>> Note: interpolate_to={args.interpolate_to} was not found and was automatically replaced with {interp_gene}")
         pid_to = processor.perturb_map[interp_gene]
         interp_structured = processor.encode_structured_perturbation_names([interp_gene])
         interp_structured = {k: v.to(device) for k, v in interp_structured.items()}
