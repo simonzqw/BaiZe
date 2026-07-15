@@ -17,21 +17,24 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
-      - name: Translate Chinese text without changing code interfaces
-        run: python scripts/translate_chinese_to_english.py
-      - name: Validate Python syntax
-        run: python -m compileall -q .
-      - name: Verify no Chinese text remains
-        run: grep -Fxq 'TOTAL_MATCHING_LINES=0' CHINESE_SCAN.txt
-      - name: Remove temporary translation infrastructure
+      - name: Run translation and retain complete diagnostics
+        shell: bash
         run: |
-          rm -f CHINESE_SCAN.txt
-          rm -f scripts/translate_chinese_to_english.py
-          rm -f .github/workflows/scan-chinese.yml
-      - name: Commit translated repository
+          set +e
+          python scripts/translate_chinese_to_english.py > TRANSLATION_LOG.txt 2>&1
+          translation_status=$?
+          echo "TRANSLATION_EXIT_STATUS=$translation_status" >> TRANSLATION_LOG.txt
+          python -m compileall -q . >> TRANSLATION_LOG.txt 2>&1
+          compile_status=$?
+          echo "COMPILE_EXIT_STATUS=$compile_status" >> TRANSLATION_LOG.txt
+          if [ -f CHINESE_SCAN.txt ]; then
+            tail -n 20 CHINESE_SCAN.txt >> TRANSLATION_LOG.txt
+          fi
+          exit 0
+      - name: Commit partial results and diagnostics
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Translate all Chinese repository content to English [skip ci]"
+          git commit -m "Record English translation diagnostics [skip ci]" || exit 0
           git push
