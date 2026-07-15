@@ -1,0 +1,29 @@
+name: Scan Chinese text
+
+on:
+  push:
+    branches:
+      - agent/translate-chinese-to-english
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/translate-chinese-to-english
+          fetch-depth: 0
+
+      - name: Scan tracked text files
+        shell: python
+        run: |
+          import pathlib
+          import re
+          import subprocess
+
+          cjk = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+          tracked = subprocess.check_output
