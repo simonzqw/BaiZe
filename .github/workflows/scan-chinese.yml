@@ -1,4 +1,4 @@
-name: Apply English translation
+name: Finalize English translation
 
 on:
   pull_request:
@@ -9,33 +9,31 @@ permissions:
   contents: write
 
 jobs:
-  translate:
-    if: github.head_ref == 'agent/apply-english-translation'
+  finalize:
+    if: github.head_ref == 'agent/finalize-english-translation'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
-      - name: Run deterministic translation and cleanup
-        shell: bash
+      - name: Fix remaining translated fragments
+        run: python scripts/fix_remaining_chinese.py
+      - name: Verify no Chinese text remains
+        run: grep -Fxq 'TOTAL_MATCHING_LINES=0' CHINESE_SCAN.txt
+      - name: Validate Python syntax
+        run: python -m compileall -q .
+      - name: Remove temporary translation infrastructure
         run: |
-          set +e
-          : > TRANSLATION_LOG.txt
-          python scripts/translate_chinese_to_english.py >> TRANSLATION_LOG.txt 2>&1
-          echo "PRIMARY_TRANSLATION_EXIT_STATUS=$?" >> TRANSLATION_LOG.txt
-          python scripts/fix_remaining_chinese.py >> TRANSLATION_LOG.txt 2>&1
-          echo "CLEANUP_TRANSLATION_EXIT_STATUS=$?" >> TRANSLATION_LOG.txt
-          python -m compileall -q . >> TRANSLATION_LOG.txt 2>&1
-          echo "COMPILE_EXIT_STATUS=$?" >> TRANSLATION_LOG.txt
-          if [ -f CHINESE_SCAN.txt ]; then
-            cat CHINESE_SCAN.txt >> TRANSLATION_LOG.txt
-          fi
-          exit 0
-      - name: Commit translated files and diagnostics
+          rm -f CHINESE_SCAN.txt
+          rm -f TRANSLATION_LOG.txt
+          rm -f scripts/translate_chinese_to_english.py
+          rm -f scripts/fix_remaining_chinese.py
+          rm -f .github/workflows/scan-chinese.yml
+      - name: Commit final English-only repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Complete deterministic English translation [skip ci]" || exit 0
+          git commit -m "Finalize English-only repository content [skip ci]"
           git push
