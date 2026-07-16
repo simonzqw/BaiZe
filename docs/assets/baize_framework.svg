@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="650" viewBox="0 0 1500 650" role="img" aria-labelledby="title desc">
+  <title id="title">BaiZe conditional diffusion framework</title>
+  <desc id="desc">Control RNA and optional perturbation conditions are encoded and fused to guide iterative diffusion denoising of the perturbation-induced expression change, which is added to the control state to reconstruct the predicted perturbed expression profile.</desc>
+  <defs>
+    <linearGradient id="cond" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7fc8f8"/>
+      <stop offset="50%" stop-color="#9b8df1"/>
+      <stop offset="100%" stop-color="#f19ac2"/>
+    </linearGradient>
+    <linearGradient id="delta" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#bfe5fb"/>
+      <stop offset="55%" stop-color="#a997ec"/>
+      <stop offset="100%" stop-color="#f4a4cb"/>
+    </linearGradient>
+    <style>
+      .panel{fill:#fff;stroke:#a9a9a9;stroke-width:3;stroke-dasharray:9 7;rx:24}
+      .box{fill:#f5f6f8;stroke:#8e8e8e;stroke-width:2.4;rx:10}
+      .soft{fill:#eeeafd;stroke:#9a90d8;stroke-width:2.2;rx:10}
+      .head{font:700 25px Arial,Helvetica,sans-serif;fill:#161616}
+      .label{font:20px Arial,Helvetica,sans-serif;fill:#1f1f1f}
+      .small{font:17px Arial,Helvetica,sans-serif;fill:#333}
+      .math{font:italic 21px Georgia,serif;fill:#1d1d1d}
+      .arrow{stroke:#8d8d8d;stroke-width:4;fill:none;marker-end:url(#m)}
+    </style>
+    <marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8d8d8d"/>
+    </marker>
+  </defs>
+
+  <rect x="14" y="18" width="540" height="280" class="panel"/>
+  <rect x="14" y="320" width="540" height="310" class="panel"/>
+  <rect x="588" y="18" width="898" height="612" class="panel"/>
+
+  <rect x="38" y="34" width="102" height="40" fill="#ededed"/><text x="52" y="62" class="head">Input</text>
+  <text x="48" y="110" class="label">Single-cell RNA-seq</text>
+  <g transform="translate(48 135)">
+    <rect width="190" height="110" fill="#f6f6f6" stroke="#bbb"/>
+    <g fill="#82b9f3"><rect x="8" y="10" width="28" height="22"/><rect x="8" y="38" width="28" height="22"/><rect x="8" y="66" width="28" height="22"/></g>
+    <g fill="#9aa9f1"><rect x="42" y="10" width="28" height="22"/><rect x="42" y="38" width="28" height="22"/><rect x="42" y="66" width="28" height="22"/></g>
+    <g fill="#b994ec"><rect x="76" y="10" width="28" height="22"/><rect x="76" y="38" width="28" height="22"/><rect x="76" y="66" width="28" height="22"/></g>
+    <g fill="#d18ddb"><rect x="110" y="10" width="28" height="22"/><rect x="110" y="38" width="28" height="22"/><rect x="110" y="66" width="28" height="22"/></g>
+    <g fill="#ef9bc6"><rect x="144" y="10" width="28" height="22"/><rect x="144" y="38" width="28" height="22"/><rect x="144" y="66" width="28" height="22"/></g>
+    <text x="5" y="106" class="small">Gene expression</text>
+  </g>
+  <path d="M250 190 H300" class="arrow"/>
+  <circle cx="344" cy="190" r="42" fill="#eef3ff" stroke="#668be8" stroke-width="3"/>
+  <path d="M318 176 L370 204 M319 205 L367 176 M344 150 V230" stroke="#668be8" stroke-width="2"/>
+  <text x="300" y="260" class="small">RNA encoder</text>
+  <path d="M392 190 H435" class="arrow"/>
+  <g transform="translate(454 132)"><rect width="28" height="30" fill="#d2effa"/><rect y="34" width="28" height="30" fill="#b9dcf6"/><rect y="68" width="28" height="30" fill="#9dbcf0"/><rect y="102" width="28" height="30" fill="#8b83e4"/></g>
+  <text x="420" y="105" class="label">Control-RNA</text><text x="438" y="128" class="label">latent <tspan font-style="italic">z</tspan><tspan baseline-shift="sub" font-size="14">bg</tspan></text>
+
+  <rect x="38" y="338" width="250" height="40" fill="#ededed"/><text x="52" y="366" class="head">Optional condition inputs</text>
+  <rect x="50" y="408" width="210" height="42" class="box"/><text x="72" y="436" class="label">Gene perturbation</text>
+  <rect x="50" y="466" width="210" height="42" class="box"/><text x="96" y="494" class="label">Drug / dose</text>
+  <rect x="50" y="524" width="210" height="42" class="box"/><text x="94" y="552" class="label">Time / state</text>
+  <rect x="50" y="582" width="210" height="42" class="soft"/><text x="67" y="610" class="label">ATAC context</text>
+  <path d="M260 429 H318 M260 487 H318 M260 545 H318 M260 603 H318" stroke="#888" stroke-width="2"/>
+  <rect x="318" y="466" width="142" height="82" class="soft"/><text x="343" y="498" class="label">Condition</text><text x="340" y="526" class="label">embedding</text>
+  <path d="M460 507 H492" class="arrow"/>
+  <g transform="translate(506 438)"><rect width="28" height="30" fill="#897fe5"/><rect y="34" width="28" height="30" fill="#a58ee9"/><rect y="68" width="28" height="30" fill="#c993df"/><rect y="102" width="28" height="30" fill="#ec9fc9"/></g>
+  <text x="462" y="410" class="label">Context <tspan font-style="italic">C</tspan></text>
+
+  <rect x="848" y="34" width="378" height="44" fill="#eeeeee"/><text x="882" y="64" class="head">BaiZe conditional diffusion framework</text>
+  <path d="M482 190 H570 V300 H624" class="arrow"/>
+  <path d="M534 507 H570 V330 H624" class="arrow"/>
+  <g transform="translate(626 254)"><rect width="30" height="35" fill="#7fc8f8"/><rect y="39" width="30" height="35" fill="#9997ef"/><rect y="78" width="30" height="35" fill="#c991df"/><rect y="117" width="30" height="35" fill="#f09fc7"/></g>
+  <text x="610" y="232" class="label">Condition fusion</text>
+  <path d="M662 330 H706" class="arrow"/>
+
+  <rect x="710" y="180" width="150" height="56" class="box"/><text x="737" y="214" class="label">Noisy latent <tspan font-style="italic">x</tspan><tspan baseline-shift="sub" font-size="14">t</tspan></text>
+  <rect x="710" y="255" width="150" height="56" class="box"/><text x="750" y="289" class="label">Timestep <tspan font-style="italic">t</tspan></text>
+  <rect x="710" y="330" width="150" height="72" class="box"/><text x="735" y="360" class="label">Fused</text><text x="727" y="388" class="label">condition <tspan font-style="italic">C</tspan></text>
+  <path d="M860 208 H900 M860 283 H900 M860 366 H900" stroke="#888" stroke-width="2.5"/>
+
+  <rect x="900" y="166" width="230" height="255" fill="#f6f6f6" stroke="#aaa" stroke-width="3" rx="16"/>
+  <text x="943" y="198" class="label">Denoiser <tspan font-style="italic">ε</tspan><tspan baseline-shift="sub" font-size="14">θ</tspan></text>
+  <rect x="926" y="220" width="178" height="54" class="soft"/><text x="956" y="253" class="label">Residual MLP</text>
+  <rect x="926" y="292" width="178" height="54" class="soft"/><text x="956" y="325" class="label">Residual MLP</text>
+  <rect x="926" y="364" width="178" height="40" class="soft"/><text x="956" y="390" class="small">Residual MLP</text>
+  <path d="M1130 294 H1170" class="arrow"/>
+  <rect x="1172" y="194" width="176" height="78" fill="#edf7ff" stroke="#99a8b5" stroke-width="2" rx="10"/><text x="1200" y="226" class="small">Conditional</text><text x="1193" y="253" class="math">εθ(x<tspan baseline-shift="sub" font-size="13">t</tspan>,t,C)</text>
+  <rect x="1172" y="292" width="176" height="78" fill="#fff2f6" stroke="#bca9b1" stroke-width="2" rx="10"/><text x="1193" y="324" class="small">Unconditional</text><text x="1193" y="351" class="math">εθ(x<tspan baseline-shift="sub" font-size="13">t</tspan>,t,∅)</text>
+  <path d="M1348 280 H1380" class="arrow"/>
+  <rect x="1380" y="252" width="78" height="76" fill="#565656" rx="12"/><text x="1395" y="281" font-family="Arial" font-size="18" fill="#fff">CFG</text><text x="1388" y="306" font-family="Arial" font-size="18" fill="#fff">guidance</text>
+
+  <circle cx="758" cy="115" r="23" fill="#d7d7d7"/><circle cx="905" cy="115" r="23" fill="#c8d9f7"/><circle cx="1050" cy="115" r="23" fill="#b9d2f4"/><circle cx="1240" cy="115" r="23" fill="#9fc7ed"/><circle cx="1400" cy="115" r="23" fill="#dcebf8"/>
+  <text x="744" y="92" class="math">x<tspan baseline-shift="sub" font-size="14">T</tspan></text><text x="891" y="92" class="math">x<tspan baseline-shift="sub" font-size="14">t</tspan></text><text x="1028" y="92" class="math">x<tspan baseline-shift="sub" font-size="14">t−1</tspan></text><text x="1226" y="92" class="math">x<tspan baseline-shift="sub" font-size="14">1</tspan></text><text x="1386" y="92" class="math">x<tspan baseline-shift="sub" font-size="14">0</tspan></text>
+  <path d="M782 115 H878 M930 115 H1022 M1076 115 H1212 M1266 115 H1372" class="arrow"/>
+  <text x="878" y="145" class="small">Reverse diffusion (iterative denoising)</text>
+
+  <path d="M1458 290 H1470 V430 H1290" class="arrow"/>
+  <text x="1325" y="414" class="label">Predicted <tspan font-style="italic">ΔX</tspan></text>
+  <rect x="710" y="455" width="748" height="145" fill="#f6f6f6" stroke="#aaa" stroke-width="3" rx="16"/>
+  <text x="986" y="486" class="head">Output reconstruction</text>
+  <g transform="translate(760 505)"><rect width="34" height="28" fill="#82b9f3"/><rect x="38" width="34" height="28" fill="#b994ec"/><rect x="76" width="34" height="28" fill="#ef9bc6"/><rect y="32" width="34" height="28" fill="#8fb0f1"/><rect x="38" y="32" width="34" height="28" fill="#b28ce6"/><rect x="76" y="32" width="34" height="28" fill="#e99dc9"/></g>
+  <text x="756" y="585" class="small">Control expression</text>
+  <text x="888" y="550" class="head">+</text>
+  <rect x="940" y="520" width="200" height="28" fill="url(#delta)" rx="7"/>
+  <text x="952" y="582" class="small">Predicted perturbation effect</text>
+  <path d="M1160 535 H1235" class="arrow"/>
+  <g transform="translate(1265 510)" stroke="#6f6f6f" stroke-width="2"><line x1="0" y1="55" x2="150" y2="55"/><g stroke-width="5"><line x1="10" y1="55" x2="10" y2="24" stroke="#ef9bc6"/><line x1="24" y1="55" x2="24" y2="12" stroke="#8ab8f2"/><line x1="38" y1="55" x2="38" y2="37" stroke="#d38edb"/><line x1="52" y1="55" x2="52" y2="18" stroke="#9e8ee9"/><line x1="66" y1="55" x2="66" y2="30" stroke="#79b9ef"/><line x1="80" y1="55" x2="80" y2="8" stroke="#ed9cc7"/><line x1="94" y1="55" x2="94" y2="35" stroke="#8d88e6"/><line x1="108" y1="55" x2="108" y2="19" stroke="#76bbed"/><line x1="122" y1="55" x2="122" y2="42" stroke="#c895df"/><line x1="136" y1="55" x2="136" y2="26" stroke="#ef9bc6"/></g></g>
+  <text x="1240" y="588" class="small">Predicted perturbed expression</text>
+</svg>

@@ -1,240 +1,157 @@
-# scERso Conditional Diffusion Model for Single-cell Response Prediction
+# BaiZe
 
-The repository's **main workflow now uses the conditional diffusion model**. The legacy MLP/Transformer training path (`train.py`) is retained for historical comparison but is no longer recommended.
+## A multi-view conditional diffusion framework for simulating cellular responses across perturbation contexts
 
-Use the following entry points for current experiments:
-- Training: `train_diffusion.py`
-- Evaluation: `evaluate_diffusion.py`
-- Inference, perturbation composition, and interpolation: `predict_diffusion.py`
-- Visualization: `visualize_diffusion.py`
+<p align="center">
+  <img src="docs/assets/baize_framework.svg" width="100%" alt="BaiZe framework">
+</p>
 
----
+BaiZe models a cellular response as a **conditional state transition**. Given an unperturbed single-cell RNA profile and a perturbation context, the framework predicts the perturbation-induced expression shift and reconstructs the post-intervention state:
 
-## 1. Main capabilities
+\[
+\hat{x}_{\mathrm{pert}} = x_{\mathrm{ctrl}} + \widehat{\Delta x}.
+\]
 
-### 1.1 Conditional diffusion backbone
-- Background-effect disentanglement: `z_bg` (background) and `z_eff` (effect) are encoded separately.
-- Target modes: `target_mode = target | delta`.
-- Sampling and guidance: classifier-free guidance, configurable DDIM sampling steps, and EMA-weight evaluation are supported.
+The control transcriptome is encoded as a cellular-background representation, while genetic interventions, drug structure and dose, temporal or state information, species context, and optional chromatin accessibility are mapped to a unified condition representation. A conditional diffusion decoder then iteratively generates the expression-change vector \(\widehat{\Delta x}\). This design provides a shared modeling interface for heterogeneous perturbation settings while preserving the biological context of the starting cell state.
 
-### 1.2 Multiple task modes
-Use `--task_mode` to select the task definition and avoid mismatches between the task and the input data:
+## Framework scope
 
-1. `single_gene`
-   - Designed for single-gene perturbation datasets such as Adamson.
-   - Condition fields: `perturb_gene_idx` and `is_control`.
+| Modeling setting | Inputs | Predicted output | Main analysis supported |
+|---|---|---|---|
+| Genetic perturbation | Control RNA and one or more perturbed genes | Single-cell expression change and perturbed RNA state | Single-gene, combinatorial and higher-order perturbation prediction |
+| Chemical perturbation | Control RNA, molecular structure, dose and cellular context | Drug-induced expression change | Unseen-drug, held-out-cell-context and dose-response analysis |
+| ATAC-guided prediction | Control RNA, perturbation condition and optional ATAC context | Chromatin-informed RNA response | RNA-only versus RNA+ATAC comparison, promoter masking and peak-level attribution |
+| Temporal state transition | Earlier control state, target time or state and optional matched ATAC | Future RNA state | Time-course prediction, lineage progression and donor-held-out evaluation |
+| Cross-species transfer | Source-species perturbation data, target-species control state and ortholog-aligned features | Target-species perturbation response | Human-to-mouse zero-shot transfer and few-shot target-species adaptation |
+| Downstream interpretation | Predicted expression matrices and derived response signatures | Genes, pathways, regulatory regions and projected phenotypes | Functional enrichment, morphology projection and evidence-linked interpretation |
 
-2. `translation`
-   - Designed for two-condition translation tasks, such as day4 -> day6.
-   - Condition fields: `condition_id` and `source_flag`.
+For SNP-informed applications, BaiZe uses a variant-associated candidate gene to define a perturbation task and predicts the downstream transcriptional consequences of altered gene activity. This analysis does not constitute direct allele-specific SNP-effect prediction.
 
-3. `drug`
-   - Designed for drug-response prediction with optional molecular structure, dose, and cellular-context conditions.
+## Model overview
 
-### 1.3 Data and control/reference handling
-- Supports `split_strategy = random | perturbation | custom`.
-- Under perturbation zero-shot splits, validation and test samples reuse the training control bank when their own splits contain no controls.
-- Supports `control_match_mode`, `control_prototype_mode`, and `control_prototype_temp`.
+BaiZe contains four main components:
 
----
+1. **Cellular-background encoder**: maps the control RNA profile to a latent representation of the pre-intervention cell state.
+2. **Condition encoder**: represents gene perturbations, multi-gene combinations, drug structure, dose, time, state, species context and optional ATAC features in a shared condition space.
+3. **Conditional diffusion decoder**: predicts the perturbation-induced expression shift through iterative denoising with classifier-free guidance.
+4. **Output reconstruction**: adds the predicted expression shift to the control state to obtain the simulated post-intervention transcriptome.
 
-## 2. Project structure
+The default target is the expression-change space (`--target_mode delta`), which separates perturbation effects from the high baseline similarity shared by control and perturbed transcriptomes.
 
-- `train_diffusion.py`: primary conditional-diffusion training entry point.
-- `evaluate_diffusion.py`: single-cell and perturbation-level evaluation.
-- `predict_diffusion.py`: single and combinatorial perturbation prediction and latent interpolation.
-- `visualize_diffusion.py`: combinatorial perturbation analysis and diagnostic visualization.
-- `models/scerso_diffusion.py`: conditional diffusion model definition.
-- `models/diffusion_core.py`: diffusion process implementation.
-- `utils/data_processor.py`: h5ad loading, split construction, control pools, and condition fields.
-- `docs/diffusion_methodology.md`: methodological description.
+## Repository structure
 
-> Legacy files such as `train.py`, `evaluate_metrics.py`, and `visualize.py` are retained only for historical comparison and are not part of the recommended workflow.
+| Path | Description |
+|---|---|
+| `train_diffusion.py` | Unified training entry point for the conditional diffusion model |
+| `evaluate_diffusion.py` | Single-cell and perturbation-level evaluation |
+| `predict_diffusion.py` | Perturbation inference, multi-gene composition and interpolation |
+| `visualize_diffusion.py` | Response visualization and combinatorial perturbation analysis |
+| `models/scerso_diffusion.py` | BaiZe model definition |
+| `models/diffusion_core.py` | Diffusion process, sampling and denoising utilities |
+| `utils/data_processor.py` | AnnData loading, split construction, control pools and condition fields |
+| `scripts/` | Drug, ATAC, temporal, cross-species and perturbation-analysis workflows |
+| `scripts_morphology/` | Export and conversion utilities for transcriptome-guided morphology projection |
+| `multiperturb_seq/` | MultiPerturb-seq RNA+ATAC processing and analysis |
+| `norman_combo_gears_style/` | Combinatorial perturbation splits and residual modeling utilities |
 
----
+## Installation
 
-## 3. Environment and dependencies
-
-Recommended environment:
-- Python 3.8+
-- PyTorch
-- scanpy / anndata
-- numpy / scipy / pandas
-- scikit-learn
-- matplotlib / seaborn
-- rdkit, only when SMILES-derived drug features are used
-
-The following setting is also recommended:
+BaiZe was developed with Python 3.10 and PyTorch. The core workflow requires PyTorch, Scanpy/AnnData, NumPy, SciPy, pandas, scikit-learn, matplotlib and tqdm. RDKit is required when drug structures are encoded from SMILES strings.
 
 ```bash
-export OMP_NUM_THREADS=1
+conda create -n baize python=3.10 -y
+conda activate baize
+pip install torch scanpy anndata numpy scipy pandas scikit-learn matplotlib seaborn tqdm rdkit
 ```
 
----
+## Input organization
 
-## 4. Training
+The main training input is an AnnData (`.h5ad`) object. Gene order must remain consistent across control and perturbed matrices. The required observation fields depend on the experiment, but the framework uses a common organization:
 
-### 4.1 Adamson (`single_gene`)
+| Field | Purpose |
+|---|---|
+| `perturbation` | Gene, multi-gene or drug perturbation label |
+| `is_control` | Control-state indicator |
+| `split` | Optional predefined train, validation and test assignment |
+| `cell_context` | Cell line, cell type, state, donor or other biological background |
+| `smiles` | Drug molecular structure for structure-conditioned prediction |
+| `dose` | Drug concentration or continuous treatment intensity |
+| `atac_feat` | Optional aligned chromatin-accessibility representation |
+
+Control labels such as `control`, `ctrl`, `DMSO` and `vehicle` should be harmonized before model training. Cross-dataset analyses additionally require a consistent gene order and, where applicable, one-to-one ortholog alignment.
+
+## Unified training
+
+The same training entry point is used across genetic, chemical, temporal and ATAC-guided experiments. Task-specific behavior is selected through the condition fields and a small number of command-line arguments.
 
 ```bash
 python train_diffusion.py \
-  --data_path /path/to/adamson/perturb_processed.h5ad \
-  --save_dir ./checkpoints_adamson_single_gene \
-  --task_mode single_gene \
-  --split_strategy perturbation \
-  --preset vnext \
-  --amp
-```
-
-When the training data contain combinatorial labels such as `double_...`, `triple_...`, or `GENE1+GENE2+GENE3`, enable multi-gene label parsing:
-
-```bash
-python train_diffusion.py \
-  --data_path /path/to/perturb_processed.h5ad \
-  --save_dir ./checkpoints_combo_diffusion \
-  --task_mode single_gene \
-  --split_strategy perturbation \
-  --perturb_parse_mode multi_gene_parse \
-  --preset vnext \
-  --amp
-```
-
-### 4.2 day4/day6 (`translation`)
-
-```bash
-python train_diffusion.py \
-  --data_path /path/to/day4_to_day6_diffusion.h5ad \
-  --save_dir ./checkpoints_day4_day6_translation \
-  --task_mode translation \
-  --split_strategy custom \
+  --data_path /path/to/processed_data.h5ad \
+  --save_dir ./outputs/baize_run \
+  --task_mode <single_gene|translation|drug> \
+  --split_strategy <perturbation|custom> \
   --split_col split \
-  --atac_key atac_feat \
+  --target_mode delta \
   --preset vnext \
-  --amp
+  --amp \
+  [--perturb_parse_mode multi_gene_parse] \
+  [--atac_key atac_feat] \
+  [--smiles_col smiles --dose_col dose --context_col cell_context]
 ```
 
-> Use `--preset smoke` for a quick smoke test.
+The optional arguments activate multi-gene parsing, ATAC conditioning or drug structure and dose conditioning without changing the core training program. For predefined temporal, donor-held-out or cell-context-held-out experiments, the desired partitions are stored in `obs['split']` and trained with `--split_strategy custom`.
 
----
-
-## 5. Evaluation
+## Unified evaluation and prediction
 
 ```bash
 python evaluate_diffusion.py \
-  --data_path /path/to/perturb_processed.h5ad \
-  --model_path ./checkpoints_xxx/best_model.pth \
-  --task_mode single_gene \
-  --split_strategy perturbation \
-  --output_json ./checkpoints_xxx/eval_metrics.json
+  --data_path /path/to/processed_data.h5ad \
+  --model_path ./outputs/baize_run/best_model.pth \
+  --task_mode <single_gene|translation> \
+  --split_strategy <perturbation|custom> \
+  --split_col split \
+  --output_json ./outputs/baize_run/evaluation.json \
+  [--perturb_parse_mode multi_gene_parse] \
+  [--atac_key atac_feat]
 ```
 
-A three-gene composition case can also be evaluated. When the corresponding combination label is present in the h5ad file, the output includes metrics against its observed mean response:
+For direct perturbation simulation, multi-gene composition and latent interpolation, use `predict_diffusion.py` with the trained checkpoint. Drug-specific evaluation is implemented in `scripts/evaluate_drug_response.py`, and cross-species evaluation is implemented in `scripts/evaluate_cross_species_mouse.py` and `scripts/evaluate_cross_species_context_preds.py`.
 
-```bash
-python evaluate_diffusion.py \
-  --data_path /path/to/perturb_processed.h5ad \
-  --model_path ./checkpoints_xxx/best_model.pth \
-  --task_mode single_gene \
-  --split_strategy perturbation \
-  --perturb_parse_mode multi_gene_parse \
-  --cell_line K562 \
-  --combo_genes FOXA2 GATA6 SOX17 \
-  --latent_mode adaptive \
-  --output_json ./checkpoints_xxx/eval_metrics_triple.json
+## Evaluation
+
+BaiZe is evaluated primarily in the expression-change space. Reported measures include whole-transcriptome Pearson correlation, expression-change Pearson correlation, Top-k expression-change Pearson correlation, Top-k mean squared error, recovery of strongly responsive genes and the fraction of top response genes predicted in the opposite direction. Metrics can be computed at both the single-cell level and after aggregation by perturbation, dose, cell context, time point or species-specific state.
+
+## Data sources
+
+| Dataset or resource | BaiZe analysis | Accession or source |
+|---|---|---|
+| Sci-Plex | Chemical structure- and dose-conditioned drug-response prediction | [GEO: GSE139944](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE139944) |
+| MultiPerturb-seq RNA+ATAC | ATAC-guided perturbation prediction, promoter peak masking and peak-level attribution | [GEO: GSE277747](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE277747) |
+| Human CD8 T-cell perturbation data | Source-species training for cross-species perturbation transfer | [GEO: GSE218988](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE218988) |
+| Mouse tumour-infiltrating T-cell Perturb-seq and chromatin accessibility | Target-species zero-shot and few-shot evaluation | [GEO: GSE203593](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE203593) |
+| HSPC time-course multiome | Temporal RNA-state prediction with optional matched ATAC context | [GEO: GSE305370](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE305370) |
+| Replogle K562 CRISPRi Perturb-seq | SNP-informed HIF1A case study and related perturbation-response analyses | [Processed Perturb-seq release on Figshare](https://plus.figshare.com/articles/dataset/_Mapping_information-rich_genotype-phenotype_landscapes_with_genome-scale_Perturb-seq_Replogle_et_al_2022_processed_Perturb-seq_datasets/20029387); [Genome-Wide Perturb-Seq portal](https://gwps.wi.mit.edu/) |
+| Ensembl BioMart | Human-mouse one-to-one ortholog mapping and gene annotation | [Ensembl BioMart](https://www.ensembl.org/biomart/martview) |
+| UCSC Genome Browser | Reference genome coordinates and genomic-region annotation | [UCSC Genome Browser](https://genome.ucsc.edu/) |
+
+## Cross-species workflow
+
+The recommended cross-species workflow aligns human and mouse genes in a shared one-to-one ortholog space, estimates source-species perturbation effects, calibrates them with the target-species control background and evaluates the resulting response across target-species cell states.
+
+```text
+Human perturbation data
+        ↓
+One-to-one ortholog alignment
+        ↓
+Target-species control-state calibration
+        ↓
+Mouse perturbation-response prediction
+        ↓
+Zero-shot evaluation or few-shot target-species adaptation
 ```
 
-For translation data, use:
+The main scripts are `scripts/cross_species_diagnose_data.py`, `scripts/cross_species_build_pseudobulk.py`, `scripts/cross_species_train_residual.py`, `scripts/cross_species_infer_residual.py`, `scripts/evaluate_cross_species_mouse.py` and `scripts/evaluate_cross_species_context_preds.py`.
 
-```bash
---task_mode translation --split_strategy custom --split_col split
-```
+## Reproducibility
 
----
-
-## 6. Inference and visualization
-
-### 6.1 Prediction, composition, and interpolation
-
-```bash
-python predict_diffusion.py \
-  --data_path /path/to/perturb_processed.h5ad \
-  --model_path ./checkpoints_xxx/best_model.pth \
-  --cell_line K562 \
-  --perturb_genes FOXA2 GATA6 \
-  --latent_mode adaptive \
-  --save_dir ./pred_out
-```
-
-For a three-gene perturbation, append the third gene to the original two-gene command:
-
-```bash
-python predict_diffusion.py \
-  --data_path /path/to/perturb_processed.h5ad \
-  --model_path ./checkpoints_xxx/best_model.pth \
-  --cell_line K562 \
-  --perturb_genes FOXA2 GATA6 SOX17 \
-  --latent_mode adaptive \
-  --save_dir ./pred_out_triple
-```
-
-### 6.2 Visualization
-
-```bash
-python visualize_diffusion.py \
-  --data_path /path/to/perturb_processed.h5ad \
-  --model_path ./checkpoints_xxx/best_model.pth \
-  --cell_line K562 \
-  --perturb_genes FOXA2 GATA6 \
-  --save_path ./combo_report.png
-```
-
-Three-gene composition visualization:
-
-```bash
-python visualize_diffusion.py \
-  --data_path /path/to/perturb_processed.h5ad \
-  --model_path ./checkpoints_xxx/best_model.pth \
-  --cell_line K562 \
-  --perturb_genes FOXA2 GATA6 SOX17 \
-  --latent_mode adaptive \
-  --save_path ./triple_combo_report.png
-```
-
----
-
-## 7. Frequently asked questions
-
-### Q1: `adata.obs is missing the custom split column: split`
-The command uses `split_strategy=custom`, but the data do not contain `obs['split']`. Either use:
-
-```bash
---split_strategy perturbation
-```
-
-or create the `split` column in the h5ad file before training.
-
-### Q2: I passed `--split_strategy perturbation`, but the log still reports `custom`
-`--preset` only overrides parameters that were not explicitly supplied. Explicit command-line arguments are retained. If the issue persists, check whether the same argument appears more than once in the command.
-
-### Q3: The validation or test split reports an empty control pool
-Under a perturbation zero-shot split, validation and test data reuse the training control bank. If the error persists, the training split itself probably contains no control samples and the source data should be checked.
-
----
-
-## 8. Cross-species perturbation prediction module
-
-This module is independent from the diffusion mainline.
-
-### 8.1 Legacy scripts
-
-- `scripts/prepare_mouse_context.py`
-- `scripts/train_cross_species_ctx.py`
-- `scripts/cross_species_infer_ctx.py`
-
-### 8.2 Recommended v2 workflow
-
-1. Diagnose data: `scripts/cross_species_diagnose_data.py`
-2. Build bootstrap pseudo-bulk: `scripts/cross_species_build_pseudobulk.py`
-3. Train residual model: `scripts/cross_species_train_residual.py`
-4. Run context-wise inference: `scripts/cross_species_infer_residual.py`
-5. Evaluate: `scripts/evaluate_cross_species_mouse.py`, `scripts/evaluate_cross_species_context_preds.py`
+Model checkpoints, large processed matrices and generated result files are not stored in the repository. Experiments are reproduced from the public datasets listed above, preprocessing scripts, saved configuration files and the command-line interfaces provided by the training and evaluation programs.
