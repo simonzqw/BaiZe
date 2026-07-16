@@ -152,6 +152,47 @@ Zero-shot evaluation or few-shot target-species adaptation
 
 The main scripts are `scripts/cross_species_diagnose_data.py`, `scripts/cross_species_build_pseudobulk.py`, `scripts/cross_species_train_residual.py`, `scripts/cross_species_infer_residual.py`, `scripts/evaluate_cross_species_mouse.py` and `scripts/evaluate_cross_species_context_preds.py`.
 
+## BaiZe-Agent
+
+<p align="center">
+  <a href="https://enjoyed-sitemap-tables-underwear.trycloudflare.com/"><strong>Open the BaiZe-Agent interactive demo</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/simonzqw/BaiZe"><strong>View the BaiZe repository</strong></a>
+</p>
+
+<p align="center">
+  <img src="docs/assets/baize_agent_explorer.svg" width="100%" alt="BaiZe-Agent Explorer interface">
+</p>
+
+BaiZe-Agent is a natural-language interface for exploring results produced by the BaiZe single-cell perturbation modelling framework. It does not retrain BaiZe or generate new cellular states during a query. Instead, it retrieves structured evidence from indexed CSV, JSON and result files, matches related figures through a figure registry, and returns evidence-grounded explanations with traceable source records.
+
+### Current capabilities
+
+| Capability | Supported exploration |
+|---|---|
+| Cross-species perturbation responses | Human-to-mouse prediction metrics, response genes, state-specific patterns and related figures |
+| Combinatorial perturbations | Single-, dual- and triple-gene response analysis, including higher-order combinations |
+| Drug and dose responses | Unseen-drug performance, dose-dependent responses and cell-context comparisons |
+| Temporal prediction | RNA-only and RNA+ATAC predictions across time points, states and held-out donors |
+| ATAC-informed interpretation | ATAC-corrected genes, promoter masking results and peak-level attribution |
+| Functional interpretation | Gene-response, pathway-enrichment, differential-expression and metric queries |
+| Evidence and figure retrieval | Indexed result-file lookup and dynamic display of registered figures |
+| Report generation | Saving answers, evidence records and related figures as PDF reports |
+
+### Example questions
+
+- How did BaiZe perform on unseen drugs?
+- Show the PDCD1 cross-species volcano plot.
+- Which genes were corrected by ATAC for BAZ1B?
+- How did correct-time ATAC improve prediction at Day7?
+- Which genes responded most strongly to ATF6+EIF2AK3+ERN1?
+
+### Evidence handling
+
+Numerical values are read from indexed result files whenever available, and related images are retrieved through the figure registry. The interface distinguishes retrieved evidence from narrative interpretation and retains the source paths used to construct each response. Prediction agreement, differential expression, enrichment and attribution analyses provide model-supported evidence, but do not by themselves establish causality, pathway activation or direct molecular regulation.
+
+The interface provides a new-exploration view, recent session history, saved results and an integrated help page. The public demonstration is available at [BaiZe-Agent Explorer](https://enjoyed-sitemap-tables-underwear.trycloudflare.com/).
+
 ## Reproducibility
 
 Model checkpoints, large processed matrices and generated result files are not stored in the repository. Experiments are reproduced from the public datasets listed above, preprocessing scripts, saved configuration files and the command-line interfaces provided by the training and evaluation programs.
