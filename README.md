@@ -161,7 +161,7 @@ The main scripts are `scripts/cross_species_diagnose_data.py`, `scripts/cross_sp
 </p>
 
 <p align="center">
-  <img src="docs/assets/baize_agent_explorer.svg" width="100%" alt="BaiZe-Agent Explorer interface">
+  <img src="docs/assets/baize.png" width="100%" alt="BaiZe-Agent Explorer interface">
 </p>
 
 BaiZe-Agent is a natural-language interface for exploring results produced by the BaiZe single-cell perturbation modelling framework. It does not retrain BaiZe or generate new cellular states during a query. Instead, it retrieves structured evidence from indexed CSV, JSON and result files, matches related figures through a figure registry, and returns evidence-grounded explanations with traceable source records.
