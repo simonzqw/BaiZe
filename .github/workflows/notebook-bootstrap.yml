@@ -1,9 +1,6 @@
-name: Install experiment notebooks
+name: Inspect notebook payload
 
 on:
-  push:
-    branches:
-      - notebooks/add-experiment-notebooks
   pull_request:
     branches:
       - main
@@ -16,32 +13,34 @@ permissions:
   contents: write
 
 jobs:
-  install-notebooks:
+  inspect-payload:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Check out source branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Extract notebook archive
+      - name: Write payload diagnostics
         shell: bash
         run: |
           set -euo pipefail
-          cat .notebook_payload/part*.b64 > /tmp/baize_notebooks.tar.xz.b64
-          base64 --decode /tmp/baize_notebooks.tar.xz.b64 > /tmp/baize_notebooks.tar.xz
-          tar -xJf /tmp/baize_notebooks.tar.xz -C .
-          rm -rf .notebook_payload
-          rm -f /tmp/baize_notebooks.tar.xz.b64 /tmp/baize_notebooks.tar.xz
+          {
+            echo "Payload sizes"
+            wc -c .notebook_payload/part*.b64
+            echo
+            echo "Payload SHA256"
+            sha256sum .notebook_payload/part*.b64
+          } > .notebook_payload/diagnostic.txt
 
-      - name: Commit notebooks
+      - name: Commit diagnostics
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Add organized experiment notebooks"
-          git push origin "HEAD:${{ github.head_ref || github.ref_name }}"
+          git add .notebook_payload/diagnostic.txt
+          git commit -m "Record notebook payload diagnostics"
+          git push origin "HEAD:${{ github.head_ref }}"
