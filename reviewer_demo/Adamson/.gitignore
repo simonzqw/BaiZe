@@ -3,3 +3,7 @@ __pycache__/
 *.log
 outputs/
 results/reproduced_metrics.json
+
+# Release-hosted binary, downloaded by download_checkpoint.sh
+checkpoints/*.pth
+checkpoints/*.pt
