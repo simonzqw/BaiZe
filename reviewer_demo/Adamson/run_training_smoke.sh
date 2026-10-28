@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${PYTHON:-python}"
-DATA="$ROOT/data/adamson_smoke.h5ad"
+DATA="$ROOT/adamson_smoke.h5ad"
 OUT="${1:-$ROOT/outputs/smoke_retrain}"
 
 for file in "$DATA" "$ROOT/train_diffusion.py" "$ROOT/models/scerso_diffusion.py" "$ROOT/utils/data_processor.py" "$ROOT/english_console.py"; do
