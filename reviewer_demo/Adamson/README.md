@@ -23,7 +23,7 @@ Perturbation categories are disjoint across the three partitions. All selected c
 ## Package contents
 
 ```text
-reviewer_package/
+Adamson/
 ├── README.md
 ├── ENVIRONMENT.md
 ├── requirements.txt
@@ -65,6 +65,8 @@ bash run_evaluation.sh
 ```
 
 These commands automatically download the example checkpoint from GitHub Releases if it is absent; a working Internet connection and `curl` or `wget` are required for this first download. You can also download it explicitly using `bash download_checkpoint.sh`. The SHA-256 expected for the release asset is `3dad6cde7a2530dd4d2736e352b0f2f291ef7cf5e9617bcf0e3380eaa2d2ef89`.
+
+**Versioning note:** Clone the current `main` branch for the documented launchers. The GitHub Release tag was created before the automatic-download script was added, so the tag's auto-generated source archive is not the current recommended entry point. The Release **asset** is the pinned checkpoint; the documented source and scripts are in `main`.
 
 To specify the Python interpreter explicitly:
 
