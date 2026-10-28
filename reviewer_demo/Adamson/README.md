@@ -1,6 +1,6 @@
 # BaiZe: Adamson Perturb-seq Reviewer Demonstration
 
-> **Publication status (2026-10-28):** The public GitHub folder currently contains documentation and launchers only. The tested dataset, 3-epoch EMA checkpoint, and exact archived model/data-processing source are retained on the authors' server pending verification of data redistribution rights and upload. This folder is **not yet independently runnable from a fresh clone**. See `PUBLICATION_STATUS.md` for details.
+> **Publication status (2026-10-28):** The exact tested source code, English documentation, launchers, and recorded metrics are available in this folder. The 2,020-cell dataset and 3-epoch EMA demonstration checkpoint have not yet been made publicly downloadable. This folder is **not yet independently runnable from a fresh clone**. See `PUBLICATION_STATUS.md` for details.
 
 ## Purpose and scope
 
