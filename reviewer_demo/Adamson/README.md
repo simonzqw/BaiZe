@@ -1,6 +1,6 @@
 # BaiZe: Adamson Perturb-seq Reviewer Demonstration
 
-> **Publication status (2026-10-28):** The exact tested source code, English documentation, launchers, and recorded metrics are available in this folder. The 2,020-cell dataset is now available at the root of this folder; the 3-epoch EMA demonstration checkpoint has not yet been made publicly downloadable. This folder is **not yet independently runnable from a fresh clone**. See `PUBLICATION_STATUS.md` for details.
+> **Publication status (2026-10-28):** The exact tested source code, 2,020-cell demonstration dataset, recorded metrics and English scripts are public. The 3-epoch EMA example checkpoint is distributed separately as a [GitHub Release asset](https://github.com/simonzqw/BaiZe/releases/tag/adamson-smoke-v1) (pre-release). The launchers now download and SHA-256-verify that checkpoint automatically. The original local test passed; a separate fresh-clone GPU execution remains to be verified. See [`PUBLICATION_STATUS.md`](PUBLICATION_STATUS.md).
 
 ## Purpose and scope
 
@@ -32,6 +32,7 @@ reviewer_package/
 ├── verify_package.sh
 ├── english_console.py
 ├── check_english.py
+├── download_checkpoint.sh
 ├── INSTALL.md
 ├── .gitignore
 ├── adamson_smoke.h5ad
@@ -45,7 +46,7 @@ reviewer_package/
 └── evaluate_diffusion.py
 ```
 
-For the public GitHub checkout, the dataset, verified demonstration source code, scripts and expected metrics are included. The checkpoint must be downloaded separately after its GitHub Release asset is published and saved as `checkpoints/adamson_inference_ema.pth`. The historical documentation-only ZIP did not include these artifacts.
+For a fresh public checkout, the dataset, verified source code, English launchers, and recorded metrics are included. The model checkpoint is hosted as a [versioned GitHub Release attachment](https://github.com/simonzqw/BaiZe/releases/download/adamson-smoke-v1/adamson_inference_ema.pth), not in Git history. `download_checkpoint.sh`, `verify_package.sh`, and `run_evaluation.sh` automatically retrieve the checkpoint when missing and verify its pinned SHA-256 digest; an existing file with the wrong digest is rejected.
 
 ## Environment
 
@@ -55,12 +56,15 @@ RDKit is not needed for RNA-only Adamson testing when `utils/data_processor.py` 
 
 ## Quick-start evaluation
 
-From this directory, after activating a compatible Python environment:
+After cloning the [BaiZe repository](https://github.com/simonzqw/BaiZe) and activating a compatible Python environment:
 
 ```bash
+cd BaiZe/reviewer_demo/Adamson
 bash verify_package.sh
 bash run_evaluation.sh
 ```
+
+These commands automatically download the example checkpoint from GitHub Releases if it is absent; a working Internet connection and `curl` or `wget` are required for this first download. You can also download it explicitly using `bash download_checkpoint.sh`. The SHA-256 expected for the release asset is `3dad6cde7a2530dd4d2736e352b0f2f291ef7cf5e9617bcf0e3380eaa2d2ef89`.
 
 To specify the Python interpreter explicitly:
 
@@ -68,7 +72,7 @@ To specify the Python interpreter explicitly:
 PYTHON=/path/to/environment/bin/python bash run_evaluation.sh
 ```
 
-The launcher loads `checkpoints/adamson_inference_ema.pth` and evaluates the 160 test cells with the predefined `obs['split']` assignments, 20 diffusion sampling steps, `residual_sample_scale=0.3`, random control matching, and an EMA-adjusted model state. **Do not add `--use_ema` when loading this compact checkpoint**, because the EMA parameters have already been merged into `model_state_dict`.
+The launcher uses the [public EMA checkpoint](https://github.com/simonzqw/BaiZe/releases/tag/adamson-smoke-v1), stored locally at `checkpoints/adamson_inference_ema.pth`, and evaluates the 160 test cells with the predefined `obs['split']` assignments, 20 diffusion sampling steps, `residual_sample_scale=0.3`, random control matching, and an EMA-adjusted model state. **Do not add `--use_ema` when loading this compact checkpoint**, because the EMA parameters have already been merged into `model_state_dict`.
 
 The evaluation output is written to `results/reproduced_metrics.json`, and its English-only terminal log is saved in `results/evaluation.log`. A runtime localization check translates inherited source-code messages without changing the model. The launcher checks that expected metric fields are present and finite. It does not require bitwise equality with the recorded metrics because stochastic sampling and runtime implementation details can affect numerical results.
 
