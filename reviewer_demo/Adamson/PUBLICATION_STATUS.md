@@ -1,8 +1,8 @@
 # Adamson reviewer demo: publication status
 
-**Status as of 2026-10-28: Documentation and launchers uploaded; public runnable package incomplete.**
+**Status as of 2026-10-28: Exact tested source and launchers uploaded; public runnable package incomplete.**
 
-This folder is part of the BaiZe manuscript's `reviewer_demo/` workspace. The authors have successfully run the software smoke test locally. The public repository does not yet contain every artifact needed to reproduce that test from a new clone.
+This folder is part of the BaiZe manuscript's `reviewer_demo/` workspace. The authors have successfully run the software smoke test locally. The exact tested training, evaluation, model and data-processing source files have now been uploaded, but the public repository still lacks the dataset and checkpoint required for a fresh-clone reproduction.
 
 ## Available on GitHub
 
@@ -10,12 +10,12 @@ This folder is part of the BaiZe manuscript's `reviewer_demo/` workspace. The au
 - Training, evaluation, and verification launcher scripts.
 - English-language console/log adapter and validation script.
 - Recorded demonstration metrics from the lightweight EMA checkpoint.
+- Exact tested Python source: `train_diffusion.py`, `evaluate_diffusion.py`, `models/scerso_diffusion.py`, `models/diffusion_core.py`, `utils/data_processor.py`, `utils/diffusion_schedule.py`, `utils/emb_loader.py`. See `SOURCE_PROVENANCE.md` for SHA verification.
 
 ## Still required for independent execution
 
 - `data/adamson_smoke.h5ad` (approximately 21.31 MiB): upload only after confirming the source attribution and redistribution permissions.
 - `checkpoints/adamson_inference_ema.pth` (approximately 87.29 MiB): store as a versioned release asset or other stable public download, not as a normal repository commit.
-- **The exact model/data-processing source used in the successful server test**, including `train_diffusion.py`, `evaluate_diffusion.py`, `models/`, and `utils/`. The tested archived source may differ from the current repository-root implementation; do not silently substitute it.
 - A clean-clone test using the public artifact URLs and published source.
 
 ## Scientific scope
@@ -31,7 +31,7 @@ The public `results/expected_metrics.json` contains metrics supplied by the loca
 ## Publication checklist
 
 1. Verify parent dataset attribution, license, and subset redistribution rights.
-2. Publish the exact tested code files rather than another repository revision.
+2. Confirm that the seven uploaded source blobs match the tested archive (recorded in `SOURCE_PROVENANCE.md`).
 3. Publish or link the dataset and inference checkpoint.
 4. Update README quick-start commands to fetch any externally hosted artifacts.
 5. Run `verify_package.sh` and `run_evaluation.sh` from a fresh checkout.
