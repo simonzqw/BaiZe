@@ -1,8 +1,8 @@
 # Adamson reviewer demo: publication status
 
-**Status as of 2026-10-28: Exact tested source and launchers uploaded; public runnable package incomplete.**
+**Status as of 2026-10-28: Exact tested source and demonstration dataset uploaded; public runnable package incomplete.**
 
-This folder is part of the BaiZe manuscript's `reviewer_demo/` workspace. The authors have successfully run the software smoke test locally. The exact tested training, evaluation, model and data-processing source files have now been uploaded, but the public repository still lacks the dataset and checkpoint required for a fresh-clone reproduction.
+This folder is part of the BaiZe manuscript's `reviewer_demo/` workspace. The authors have successfully run the software smoke test locally. The exact tested training, evaluation, model and data-processing source files have now been uploaded, and the 2,020-cell demonstration dataset is now public at `adamson_smoke.h5ad`. The repository still lacks a publicly accessible inference checkpoint required for a fresh-clone reproduction.
 
 ## Available on GitHub
 
@@ -10,11 +10,11 @@ This folder is part of the BaiZe manuscript's `reviewer_demo/` workspace. The au
 - Training, evaluation, and verification launcher scripts.
 - English-language console/log adapter and validation script.
 - Recorded demonstration metrics from the lightweight EMA checkpoint.
+- Uploaded dataset at `adamson_smoke.h5ad` (22,344,537 bytes / approximately 21.31 MiB). Parent-dataset attribution and redistribution permission still require review.
 - Exact tested Python source: `train_diffusion.py`, `evaluate_diffusion.py`, `models/scerso_diffusion.py`, `models/diffusion_core.py`, `utils/data_processor.py`, `utils/diffusion_schedule.py`, `utils/emb_loader.py`. See `SOURCE_PROVENANCE.md` for SHA verification.
 
 ## Still required for independent execution
 
-- `data/adamson_smoke.h5ad` (approximately 21.31 MiB): upload only after confirming the source attribution and redistribution permissions.
 - `checkpoints/adamson_inference_ema.pth` (approximately 87.29 MiB): store as a versioned release asset or other stable public download, not as a normal repository commit.
 - A clean-clone test using the public artifact URLs and published source.
 
@@ -32,7 +32,7 @@ The public `results/expected_metrics.json` contains metrics supplied by the loca
 
 1. Verify parent dataset attribution, license, and subset redistribution rights.
 2. Confirm that the seven uploaded source blobs match the tested archive (recorded in `SOURCE_PROVENANCE.md`).
-3. Publish or link the dataset and inference checkpoint.
+3. Publish a versioned inference checkpoint via a public GitHub Release and document its download link.
 4. Update README quick-start commands to fetch any externally hosted artifacts.
 5. Run `verify_package.sh` and `run_evaluation.sh` from a fresh checkout.
 6. Only then describe the public folder as an independently executable smoke-test package.
