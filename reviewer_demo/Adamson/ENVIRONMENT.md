@@ -39,13 +39,15 @@ The RNA-only smoke test uses an optional `rdkit` import in `utils/data_processor
 
 An unrelated Scanpy `pkg_resources` deprecation warning was observed but did not prevent successful training and evaluation.
 
-## Commands
+## Commands and model download
 
 ```bash
 bash verify_package.sh
 bash run_evaluation.sh
 bash run_training_smoke.sh
 ```
+
+The first two commands automatically download the [example EMA checkpoint](https://github.com/simonzqw/BaiZe/releases/tag/adamson-smoke-v1) if it is missing. The `download_checkpoint.sh` helper verifies the SHA-256 digest published with the GitHub Release and refuses to overwrite a mismatched local checkpoint. On first use, Linux must have `curl` or `wget`, `sha256sum`, and Internet access.
 
 `run_evaluation.sh` saves `results/reproduced_metrics.json`. `run_training_smoke.sh` writes a fresh run to `outputs/smoke_retrain` by default. Output values are stochastic and may differ slightly between machines.
 
