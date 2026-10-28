@@ -14,7 +14,8 @@ def main():
     defaults = [
         "README.md", "ENVIRONMENT.md", "requirements.txt", "run_evaluation.sh",
         "run_training_smoke.sh", "verify_package.sh", "english_console.py",
-        "check_english.py", "INSTALL.md"
+        "check_english.py", "INSTALL.md", "download_checkpoint.sh",
+        "PUBLICATION_STATUS.md", "SOURCE_PROVENANCE.md"
     ]
     paths = options.paths or defaults
     failures = 0
