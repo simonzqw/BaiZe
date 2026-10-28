@@ -1,0 +1,19 @@
+{
+  "test_unseen_single_pearson": 0.6896156072616577,
+  "test_unseen_single_mse": 0.24238288663327695,
+  "test_unseen_single_pearson_delta": 0.0036817057989537716,
+  "test_unseen_single_pearson_delta_top20": -0.107454814016819,
+  "test_unseen_single_rmse_top20": 1.9533721409738063,
+  "test_unseen_single_mse_top20_de_non_dropout": 3.909506534785032,
+  "test_unseen_single_opposite_direction_top20_non_dropout": 0.5349999999999999,
+  "test_unseen_perturb_pearson": 0.8038622140884399,
+  "test_unseen_perturb_mse": 0.13788696750998497,
+  "perturb_pearson_delta": 0.008696652948856354,
+  "perturb_pearson_delta_top20": -0.23357149958610535,
+  "test_unseen_perturb_mse_top20_de_non_dropout": 1.8282560482621193,
+  "opposite_direction_top20_non_dropout": 0.6,
+  "perturb_rmse_top20": 1.3218382894992828,
+  "sample_steps": 20,
+  "guidance_scale": 1,
+  "model_path": "checkpoints/adamson_inference_ema.pth"
+}
