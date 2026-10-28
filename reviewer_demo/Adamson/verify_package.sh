@@ -14,7 +14,7 @@ for file in \
     "$ROOT/run_training_smoke.sh" \
     "$ROOT/english_console.py" \
     "$ROOT/check_english.py" \
-    "$ROOT/data/adamson_smoke.h5ad" \
+    "$ROOT/adamson_smoke.h5ad" \
     "$ROOT/checkpoints/adamson_inference_ema.pth" \
     "$ROOT/results/expected_metrics.json" \
     "$ROOT/train_diffusion.py" \
@@ -41,7 +41,7 @@ from english_console import english_text
 assert "Loading data" in english_text("Loading data")
 print("PyTorch:", torch.__version__)
 print("CUDA available:", torch.cuda.is_available())
-a = ad.read_h5ad("data/adamson_smoke.h5ad", backed="r")
+a = ad.read_h5ad("adamson_smoke.h5ad", backed="r")
 try:
     assert a.n_obs == 2020, a.n_obs
     assert a.n_vars == 5060, a.n_vars
