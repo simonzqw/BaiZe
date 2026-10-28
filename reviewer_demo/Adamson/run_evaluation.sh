@@ -9,6 +9,9 @@ MODEL="$ROOT/checkpoints/adamson_inference_ema.pth"
 OUT="$ROOT/results/reproduced_metrics.json"
 LOG="$ROOT/results/evaluation.log"
 
+# Download the pinned release asset if needed, then verify its checksum.
+bash "$ROOT/download_checkpoint.sh"
+
 for file in "$DATA" "$MODEL" "$ROOT/evaluate_diffusion.py" "$ROOT/models/scerso_diffusion.py" "$ROOT/utils/data_processor.py" "$ROOT/english_console.py"; do
     if [[ ! -s "$file" ]]; then
         echo "ERROR: Missing or empty required file: $file" >&2
