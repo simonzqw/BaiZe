@@ -1,41 +1,61 @@
-# Installation and package update
+# Installation and evaluation of the BaiZe Adamson reviewer smoke test
 
-This update supplies **English-only reviewer-facing documents, scripts, and console messages**. It keeps the verified AnnData input, pretrained example checkpoint, original research implementation, and numeric evaluation settings unchanged.
+This directory is an English-language **software smoke-test demonstration**. It is not the full Figure 2b benchmark or an example of strong unseen-perturbation performance.
 
-The archive contains **no** `.h5ad` or `.pth` files. It should be extracted into an existing `reviewer_package/` directory with the dataset, checkpoint, core model code, and `results/expected_metrics.json` already in place.
+## Public artifacts
 
-## Install
+- **Source, data and scripts:** [BaiZe/reviewer_demo/Adamson](https://github.com/simonzqw/BaiZe/tree/main/reviewer_demo/Adamson)
+- **Example checkpoint:** [adamson-smoke-v1 pre-release](https://github.com/simonzqw/BaiZe/releases/tag/adamson-smoke-v1)
+- **Direct checkpoint download:** [adamson_inference_ema.pth](https://github.com/simonzqw/BaiZe/releases/download/adamson-smoke-v1/adamson_inference_ema.pth)
 
-Copy the ZIP to the parent directory of the existing `reviewer_package/` directory and extract its files into `reviewer_package/`.
+The checkpoint is 91,528,898 bytes (approximately 87.29 MiB). Its GitHub-published SHA-256 digest is:
 
-```bash
-BASE=/home/zqw/data1/Baize_reviewer_demo/Adamson
-python3 -m zipfile -e "$BASE/BaiZe_Adamson_English_v2.zip" "$BASE/reviewer_package"
-chmod +x "$BASE/reviewer_package/"*.sh
-cd "$BASE/reviewer_package"
+```text
+3dad6cde7a2530dd4d2736e352b0f2f291ef7cf5e9617bcf0e3380eaa2d2ef89
 ```
 
-## Verify and evaluate
+Do not commit this model artifact to the Git history: the launcher downloads it into `checkpoints/adamson_inference_ema.pth` when needed.
+
+## Clone and evaluate
+
+On a Linux machine with Python 3.10, an appropriate PyTorch installation, and the other dependencies described in `ENVIRONMENT.md`:
 
 ```bash
-PYTHON=/home/zqw/conda/envs/cellwhisperer/bin/python bash verify_package.sh
-PYTHON=/home/zqw/conda/envs/cellwhisperer/bin/python bash run_evaluation.sh
+git clone https://github.com/simonzqw/BaiZe.git
+cd BaiZe/reviewer_demo/Adamson
+bash verify_package.sh
+bash run_evaluation.sh
 ```
 
-The evaluation prints and records English messages, writes `results/reproduced_metrics.json`, and checks `results/evaluation.log` for unexpected non-English characters.
+Both verification and evaluation automatically call `download_checkpoint.sh`. The first run needs Internet access plus `curl` or `wget`; the downloaded binary must match its pinned SHA-256 digest. A mismatched existing file is not overwritten automatically.
 
-## Retrain (optional)
+To download the checkpoint explicitly:
 
 ```bash
-PYTHON=/home/zqw/conda/envs/cellwhisperer/bin/python bash run_training_smoke.sh
+bash download_checkpoint.sh
 ```
 
-The training output defaults to `outputs/smoke_retrain/` and is never allowed to overwrite an existing directory. Its log is checked for English-only output.
+For an already activated compatible environment, the scripts use `python`. You may specify a different interpreter:
 
-## Scientific integrity and limitations
+```bash
+PYTHON=/path/to/python bash verify_package.sh
+PYTHON=/path/to/python bash run_evaluation.sh
+```
 
-- The text-translation layer only affects displayed console messages, not numerical calculations.
-- The underlying research source files are retained unchanged and may still include legacy non-English comments and print literals. The launchers translate those messages for the reviewer-facing console and logs.
-- If an unknown non-English source message occurs, the launcher fails visibly rather than dropping a warning or traceback.
-- A successful smoke test demonstrates that the software pipeline can run, **not** that the manuscript's Figure 2b performance has been reproduced.
-- The parent dataset provenance and redistribution permissions must be checked before releasing the data subset publicly.
+Expected evaluation artifacts are `results/reproduced_metrics.json` and an English-only `results/evaluation.log`. The recorded local example metrics are in `results/expected_metrics.json`.
+
+## Optional training demonstration
+
+```bash
+bash run_training_smoke.sh
+```
+
+This runs three training epochs with a predefined perturbation-disjoint split. The output is written to a new `outputs/smoke_retrain/` directory. It will not overwrite a prior run. The training does not recreate the exact published example checkpoint.
+
+## Dataset licensing and scientific limitations
+
+The 2,020-cell subset is publicly available as `adamson_smoke.h5ad` in this folder. Its original accession, attribution and redistribution rights still require separate verification. Hosting it publicly does not establish those permissions.
+
+The original model source is kept byte-for-byte identical to the tested archive. The English console wrapper translates legacy log messages without changing computational operations.
+
+A successful software smoke test does not reproduce the manuscript's reported full Figure 2b results. The example checkpoint's delta-response correlations are close to zero. For source hashes and release status, see `SOURCE_PROVENANCE.md` and `PUBLICATION_STATUS.md`.
