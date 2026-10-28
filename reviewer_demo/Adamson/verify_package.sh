@@ -5,6 +5,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${PYTHON:-python}"
 
+# A fresh checkout downloads the pinned model automatically.
+bash "$ROOT/download_checkpoint.sh"
+
 for file in \
     "$ROOT/README.md" \
     "$ROOT/ENVIRONMENT.md" \
@@ -12,6 +15,7 @@ for file in \
     "$ROOT/requirements.txt" \
     "$ROOT/run_evaluation.sh" \
     "$ROOT/run_training_smoke.sh" \
+    "$ROOT/download_checkpoint.sh" \
     "$ROOT/english_console.py" \
     "$ROOT/check_english.py" \
     "$ROOT/adamson_smoke.h5ad" \
