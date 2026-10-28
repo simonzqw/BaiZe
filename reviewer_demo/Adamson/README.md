@@ -1,6 +1,6 @@
 # BaiZe: Adamson Perturb-seq Reviewer Demonstration
 
-> **Publication status (2026-10-28):** The exact tested source code, English documentation, launchers, and recorded metrics are available in this folder. The 2,020-cell dataset and 3-epoch EMA demonstration checkpoint have not yet been made publicly downloadable. This folder is **not yet independently runnable from a fresh clone**. See `PUBLICATION_STATUS.md` for details.
+> **Publication status (2026-10-28):** The exact tested source code, English documentation, launchers, and recorded metrics are available in this folder. The 2,020-cell dataset is now available at the root of this folder; the 3-epoch EMA demonstration checkpoint has not yet been made publicly downloadable. This folder is **not yet independently runnable from a fresh clone**. See `PUBLICATION_STATUS.md` for details.
 
 ## Purpose and scope
 
@@ -10,7 +10,7 @@ This package is a **software reproducibility smoke test** for the BaiZe conditio
 
 ## Data and splits
 
-The prepared `data/adamson_smoke.h5ad` file contains **2,020 cells and 5,060 genes** from K562 cells, representing **86 single-gene perturbation categories** plus a control category. Using fixed random seeds, 20 cells were sampled per perturbation and 300 control cells were sampled.
+The prepared `adamson_smoke.h5ad` file contains **2,020 cells and 5,060 genes** from K562 cells, representing **86 single-gene perturbation categories** plus a control category. Using fixed random seeds, 20 cells were sampled per perturbation and 300 control cells were sampled.
 
 | Partition | Number of cells | Perturbation categories |
 | --- | ---: | --- |
@@ -18,7 +18,7 @@ The prepared `data/adamson_smoke.h5ad` file contains **2,020 cells and 5,060 gen
 | Validation | 160 | 8 held-out gene perturbations |
 | Test | 160 | 8 held-out gene perturbations |
 
-Perturbation categories are disjoint across the three partitions. All selected control cells are assigned to training, and training controls also serve as the reference control pool during held-out evaluation. The original source file used to generate this subset was `perturb_processed_scerso_compat_ctxfix.h5ad` (68,603 cells, 5,060 genes). Exact source attribution, the parent dataset's public accession/download URL, and redistribution permission remain to be verified **before publishing the subset publicly**.
+Perturbation categories are disjoint across the three partitions. All selected control cells are assigned to training, and training controls also serve as the reference control pool during held-out evaluation. The original source file used to generate this subset was `perturb_processed_scerso_compat_ctxfix.h5ad` (68,603 cells, 5,060 genes). The subset has been uploaded to the public repository. Parent-dataset attribution, a public source accession/download URL, and redistribution permission still require verification; public availability alone does not establish redistribution rights.
 
 ## Package contents
 
@@ -34,8 +34,7 @@ reviewer_package/
 ├── check_english.py
 ├── INSTALL.md
 ├── .gitignore
-├── data/
-│   └── adamson_smoke.h5ad
+├── adamson_smoke.h5ad
 ├── checkpoints/
 │   └── adamson_inference_ema.pth
 ├── results/
@@ -46,7 +45,7 @@ reviewer_package/
 └── evaluate_diffusion.py
 ```
 
-The ZIP containing this documentation and the launchers **does not include** the data, checkpoint, model source code, or prior results. Those files must already be present in the destination `reviewer_package/` directory.
+For the public GitHub checkout, the dataset, verified demonstration source code, scripts and expected metrics are included. The checkpoint must be downloaded separately after its GitHub Release asset is published and saved as `checkpoints/adamson_inference_ema.pth`. The historical documentation-only ZIP did not include these artifacts.
 
 ## Environment
 
@@ -111,7 +110,7 @@ The complete recorded JSON is `results/expected_metrics.json`. **The original tr
 
 The smoke-test run demonstrated data loading, metadata and control-pool processing, training, checkpoint saving, independently loading a checkpoint, inference over the held-out test partition, and JSON metric export.
 
-This does **not** establish the reported Figure 2b performance. Full benchmark reproduction requires the original full data, validated preprocessing, split protocol, model configuration, training duration, pretrained-feature setup where applicable, and matching metric definitions. The parent dataset's public provenance and redistribution rights should be resolved before distributing `adamson_smoke.h5ad`.
+This does **not** establish the reported Figure 2b performance. Full benchmark reproduction requires the original full data, validated preprocessing, split protocol, model configuration, training duration, pretrained-feature setup where applicable, and matching metric definitions. The parent dataset's public provenance and redistribution rights still require verification for the already uploaded `adamson_smoke.h5ad`.
 
 ## English-only reviewer-facing output
 
