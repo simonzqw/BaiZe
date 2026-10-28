@@ -22,6 +22,6 @@ Every file's uploaded Git blob SHA-1 was compared against the corresponding loca
 
 The accompanying English console adapter translates display-only legacy messages and checks reviewer-facing logs. A few comments and original diagnostic strings in the archived Python source are in Chinese; those original source bytes are intentionally preserved so the code remains verifiably identical to the locally tested version. All instructions and launcher output intended for reviewers are in English.
 
-The **dataset** (`data/adamson_smoke.h5ad`, about 21.31 MiB) and **lightweight EMA checkpoint** (`checkpoints/adamson_inference_ema.pth`, about 87.29 MiB) are not yet publicly hosted. Check `PUBLICATION_STATUS.md` before claiming an independently executable public reproduction.
+The **dataset** (`adamson_smoke.h5ad`, 22,344,537 bytes / approximately 21.31 MiB) is now available in this public GitHub directory. The **lightweight EMA checkpoint** (`checkpoints/adamson_inference_ema.pth`, approximately 87.29 MiB) is not yet publicly hosted. The uploaded dataset's parent-source attribution and redistribution rights still require verification. Check `PUBLICATION_STATUS.md` before claiming an independently executable public reproduction.
 
 The demonstrated 3-epoch results are smoke-test results only; they are not the full manuscript Figure 2b benchmark.
