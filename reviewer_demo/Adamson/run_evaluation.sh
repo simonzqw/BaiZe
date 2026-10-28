@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${PYTHON:-python}"
-DATA="$ROOT/data/adamson_smoke.h5ad"
+DATA="$ROOT/adamson_smoke.h5ad"
 MODEL="$ROOT/checkpoints/adamson_inference_ema.pth"
 OUT="$ROOT/results/reproduced_metrics.json"
 LOG="$ROOT/results/evaluation.log"
