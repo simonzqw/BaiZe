@@ -1,2 +1,50 @@
+# Python bytecode and tool caches
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# Local Python environments and secrets
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Editors and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+
+# Build and packaging artifacts
+/build/
+/dist/
+*.egg-info/
+
+# Local training outputs (root-level paths)
+/checkpoints/
+/checkpoints_*/
+/outputs/
+/runs/
+/wandb/
+/lightning_logs/
+/diffusion_predictions/
+/diffusion_eval.json
+
+# Local raw/processed datasets; keep curated demo assets trackable
+/data/raw/
+/data/processed/
+/data/cache/
