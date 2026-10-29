@@ -5,8 +5,8 @@ This note summarizes the recorded Figure 6a–e workflow for time-conditioned RN
 ## 1. Original data and prediction task
 
 - **Data source:** human CD34+ haematopoietic stem/progenitor cell (HSPC) time-course multiome, [GEO GSE305370](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE305370).
-- **Original usable format:** processed donor/day \`.h5mu\` files with RNA (\`mdata.mod['rna']\`) and ATAC (\`mdata.mod['atac']\`) modalities.
-- **Donors used in the recorded study:** \`13176\`, \`27678\`, \`31800\`, \`32606\`.
+- **Original usable format:** processed donor/day `.h5mu` files with RNA (`mdata.mod['rna']`) and ATAC (`mdata.mod['atac']`) modalities.
+- **Donors used in the recorded study:** `13176`, `27678`, `31800`, `32606`.
 - **Common modeled days:** **Day 2** as the starting-state RNA, and **Day 3 / Day 7 / Day 10** as target-time conditions. Some source files include Day 4, which is **not** one of these main target days.
 - **Cell states:** HSC, EryP, MkP, NeuP, MoP and MasP; rare BP observations were typically excluded from the main visual summaries.
 
@@ -14,22 +14,22 @@ The method predicts Day3/Day7/Day10 RNA separately from a Day2 starting state. I
 
 ## 2. From donor/day Multiome files to model input
 
-1. **Read donor/day multiome data.** Extract the RNA and ATAC modalities from each \`.h5mu\`, retaining donor, day, cell-state/sample metadata and raw cell identifiers.
+1. **Read donor/day multiome data.** Extract the RNA and ATAC modalities from each `.h5mu`, retaining donor, day, cell-state/sample metadata and raw cell identifiers.
 2. **Select the modeled time points and consistent RNA features.** Form Day2 starting-state pools and Day3/Day7/Day10 target-state observations. The recorded formal single-cell prediction dataset has **17,865 shared RNA genes**. The exact upstream gene-filtering, normalization, variable-gene selection and scaling implementation has **not** been recovered: do not substitute an arbitrary RNA preprocessing recipe and call it the original method.
-3. **Construct state-transition records.** Associate a Day2 RNA input with a target-day RNA observation and the appropriate donor/cell-state/time context. The stored records represent a *conditional* time shift; \`TIME_SHIFT\` is a computational task label, not an actual CRISPR perturbation. The precise Day2-control sampling/matching algorithm and whether the same Day2 cell is reused have not been confirmed from source code.
+3. **Construct state-transition records.** Associate a Day2 RNA input with a target-day RNA observation and the appropriate donor/cell-state/time context. The stored records represent a *conditional* time shift; `TIME_SHIFT` is a computational task label, not an actual CRISPR perturbation. The precise Day2-control sampling/matching algorithm and whether the same Day2 cell is reused have not been confirmed from source code.
 4. **Create ATAC conditioning.** The recorded predictive model uses **50-dimensional global ATAC-LSI** context features. Prepare three distinct variants: **RNA-only** (without ATAC conditioning), **shuffled/mismatched ATAC** (negative control), and **correct target-time-matched ATAC**. The shuffle scope and the original LSI fitting/normalization procedure must still be checked against the training-data generator.
-5. **Freeze donor-held-out splits and save AnnData.** Preserve the processed RNA records, condition metadata, gene order, ATAC condition variant and \`obs['split']\`. The three recorded model-input filenames are:
+5. **Freeze donor-held-out splits and save AnnData.** Preserve the processed RNA records, condition metadata, gene order, ATAC condition variant and `obs['split']`. The three recorded model-input filenames are:
 
-\`\`\`text
+```text
 GSE305370 donor/day multiome .h5mu (RNA + ATAC)
   -> donor/day RNA and ATAC extraction, gene alignment and state-transition record building
   -> fixed single-cell leave-one-donor-out (LODO) split
      ├─ gse305370_singlecell_lodo_heldout_13176_rna_only_max500.h5ad
      ├─ gse305370_singlecell_lodo_heldout_13176_shuffled_atac_max500.h5ad
      └─ gse305370_singlecell_lodo_heldout_13176_correct_atac_max500.h5ad
-\`\`\`
+```
 
-The \`max500\` suffix belongs to the recorded artifact names. Without the original generator, it should **not** be interpreted as proof of an exact per-donor/day/cell-state cap or sampling algorithm.
+The `max500` suffix belongs to the recorded artifact names. Without the original generator, it should **not** be interpreted as proof of an exact per-donor/day/cell-state cap or sampling algorithm.
 
 ## 3. Recorded leave-one-donor-out (LODO) split
 
@@ -54,6 +54,6 @@ A crucial protocol distinction: **correct-time ATAC** can supply the *target day
 
 ## 5. Validation and outstanding provenance
 
-Verify \`obs['donor'] × obs['split']\`, source/target time and cell-type distributions, the 17,865-gene order, the presence/absence of \`obsm['atac_feat']\` for each model setting, and train/test barcode disjointness where required. For shuffled ATAC, record the precise shuffle unit and seed. Retain explicit source-to-control pairing IDs if available, to detect source-state reuse and potential leakage.
+Verify `obs['donor'] × obs['split']`, source/target time and cell-type distributions, the 17,865-gene order, the presence/absence of `obsm['atac_feat']` for each model setting, and train/test barcode disjointness where required. For shuffled ATAC, record the precise shuffle unit and seed. Retain explicit source-to-control pairing IDs if available, to detect source-state reuse and potential leakage.
 
-The historic training launcher is known as \`run_singlecell_lodo_13176_full.sh\`, but its complete arguments, validation allocation, gene preprocessing details, control-matching strategy and ATAC shuffle construction have **not** been fully retrieved. The notebook figures and saved evaluation files are evidence of executed analyses; they do not by themselves reconstruct the missing data-generation implementation.
+The historic training launcher is known as `run_singlecell_lodo_13176_full.sh`, but its complete arguments, validation allocation, gene preprocessing details, control-matching strategy and ATAC shuffle construction have **not** been fully retrieved. The notebook figures and saved evaluation files are evidence of executed analyses; they do not by themselves reconstruct the missing data-generation implementation.
