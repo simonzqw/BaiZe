@@ -7,7 +7,7 @@
 \]
 
 <p align="center">
-  <img src="docs/assets/baize_framework.svg" width="100%" alt="BaiZe conditional diffusion framework">
+  <img src="docs/assets/baize_framework_latest.png" width="100%" alt="BaiZe conditional diffusion framework showing RNA encoding, condition fusion, iterative denoising and output reconstruction">
 </p>
 
 The framework supports genetic and combinatorial perturbations, drug structure/dose, time-dependent state prediction and optional ATAC conditioning. Human-to-mouse transfer additionally uses an ortholog-aligned residual adaptation workflow.
